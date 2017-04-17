@@ -13,6 +13,7 @@ def get_config(path=None):
         "/etc/geonotebook.ini",
         "/usr/etc/geonotebook.ini",
         "/usr/local/etc/geonotebook.ini",
+        "~/.local/etc/geonotebook.ini",
         os.path.join(sys.prefix, "etc/geonotebook.ini"),
         "~/.geonotebook.ini",
         os.path.join(os.getcwd(), ".geonotebook.ini"),
