@@ -75,8 +75,12 @@ def install_kernel(cmd):
         json.dump(kernel_dict, fh, indent=1)
 
     ksm = KernelSpecManager()
-    ksm.install_kernel_spec(
-        path, kernel_name=kernel_name, user=False, prefix=sys.prefix)
+    try:
+        ksm.install_kernel_spec(
+            path, kernel_name=kernel_name, user=False, prefix=sys.prefix)
+    except:
+        ksm.install_kernel_spec(
+            path, kernel_name=kernel_name, user=True)
 
     shutil.rmtree(path)
 
