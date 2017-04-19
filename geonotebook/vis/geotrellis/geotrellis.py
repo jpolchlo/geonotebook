@@ -10,33 +10,10 @@ from tornado.web import URLSpec
 
 # jupyterhub --no-ssl --Spawner.notebook_dir=/home/hadoop
 
-class GeoTrellisHandler(IPythonHandler):
-
-    def initialize(self, fn):
-        self.fn = fn
-
-    @gen.coroutine
-    def get(self, layer_name, _x, _y, _zoom, **kwargs):
-        x = int(_x)
-        y = int(_y)
-        zoom = int(_zoom)
-
-        self.set_header('Content-Type', 'image/png')
-        png = self.fn(layer_name, x, y, zoom)
-        self.write(png)
-        self.finish()
-
-
 class GeoTrellis(object):
 
-    def __init__(self, config, catalog, SPARK_HOME):
-        os.environ['SPARK_HOME'] = SPARK_HOME
-        from pyspark import SparkContext
-        from geopyspark.geopycontext import GeoPyContext
-
-        sc = SparkContext(appName="Value Reader")
-        self.geopysc = GeoPyContext(sc)
-        self.config = config
+    def __init__(self, config, catalog, url):
+        self.base_url = url
         self.catalog = catalog
 
     def start_kernel(self, kernel):
@@ -46,35 +23,12 @@ class GeoTrellis(object):
         pass
 
     def initialize_webapp(self, config, webapp):
-        import io
-
-        from geopyspark.geotrellis.catalog import read_value
-        from geopyspark.geotrellis.constants import SPATIAL
-        from PIL import Image, ImageOps
-
-        def fn(layer_name, x, y, zoom):
-
-            def make_image(arr):
-                return Image.fromarray(arr.astype('uint8')).resize((256,256), Image.NEAREST).convert('L')
-
-            tile = read_value(self.geopysc, SPATIAL, self.catalog, layer_name, zoom, x, y)
-            arr = tile['data']
-            bands = max(arr.shape[0],3)
-            arrs = [np.array(arr[x, :, :]).reshape(256, 256) for x in range(bands)]
-            images = [make_image(arr) for arr in arrs]
-            image = ImageOps.autocontrast(Image.merge('RGB', images))
-            bio = io.BytesIO()
-            image.save(bio, 'PNG')
-
-            return bio.getvalue()
-
-        pattern = r'/user/[^/]+/geotrellis/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.png.*'
-        webapp.add_handlers(r'.*', [(pattern, GeoTrellisHandler, {'fn': fn})])
+        pass
 
     def get_params(self, name, data, **kwargs):
         return {}
 
-    def ingest(self, data, max_zoom, name=None, **kwargs):
+    def ingest(self, data, geopysc, max_zoom, name=None, **kwargs):
         from geopyspark.geotrellis.catalog import write
         from geopyspark.geotrellis.constants import SPATIAL
         from geopyspark.geotrellis.geotiff_rdd import geotiff_rdd
@@ -85,7 +39,7 @@ class GeoTrellis(object):
 
         # GeoTrellis ingest
         rdd = geotiff_rdd(geopysc, SPATIAL, path, maxTileSize=256, numPartitions=64)
-        reprojected = reproject(geopysc, rdd, "EPSG:3857")
+        reprojected = rdd #reproject(geopysc, rdd, "EPSG:3857")
         (_, metadata) = collect_pyramid_metadata(geopysc,
                                                  SPATIAL,
                                                  reprojected,
@@ -108,4 +62,4 @@ class GeoTrellis(object):
                   layer_rdd,
                   layer_metadata)
 
-        return "/user/jack/geotrellis/" + layer_name
+        return self.base_url + "/" + layer_name

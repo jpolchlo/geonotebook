@@ -1,0 +1,107 @@
+diff --git a/geonotebook/vis/geotrellis/geotrellis.py b/geonotebook/vis/geotrellis/geotrellis.py
+index d47af93..a6a5ab2 100644
+--- a/geonotebook/vis/geotrellis/geotrellis.py
++++ b/geonotebook/vis/geotrellis/geotrellis.py
+@@ -10,11 +10,28 @@ from tornado.web import URLSpec
+ 
+ # jupyterhub --no-ssl --Spawner.notebook_dir=/home/hadoop
+ 
++class GeoTrellisHandler(IPythonHandler):
++
++    def initialize(self, moop):
++        self.moop = moop
++
++    def get(self, layer_name, _x, _y, _zoom, **kwargs):
++        x = int(_x)
++        y = int(_y)
++        zoom = int(_zoom)
++
++        # self.set_header('Content-Type', 'image/png')
++        # png = self.fn(layer_name, x, y, zoom)
++        # self.write(png)
++        self.write(str(self.moop))
++        self.finish()
++
+ class GeoTrellis(object):
+ 
+     def __init__(self, config, catalog, url):
+         self.base_url = url
+         self.catalog = catalog
++        self.moop = {}
+ 
+     def start_kernel(self, kernel):
+         pass
+@@ -23,43 +40,44 @@ class GeoTrellis(object):
+         pass
+ 
+     def initialize_webapp(self, config, webapp):
+-        pass
++        pattern = r'/user/[^/]+/geotrellis/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.png.*'
++        webapp.add_handlers(r'.*', [(pattern, GeoTrellisHandler, {'moop': webapp})])
+ 
+     def get_params(self, name, data, **kwargs):
+         return {}
+ 
+     def ingest(self, data, geopysc, max_zoom, name=None, **kwargs):
+-        from geopyspark.geotrellis.catalog import write
+-        from geopyspark.geotrellis.constants import SPATIAL
+-        from geopyspark.geotrellis.geotiff_rdd import geotiff_rdd
+-        from geopyspark.geotrellis.tile_layer import collect_pyramid_metadata, tile_to_layout, pyramid, reproject
++        # from geopyspark.geotrellis.catalog import write
++        # from geopyspark.geotrellis.constants import SPATIAL
++        # from geopyspark.geotrellis.geotiff_rdd import geotiff_rdd
++        # from geopyspark.geotrellis.tile_layer import collect_pyramid_metadata, tile_to_layout, pyramid, reproject
+ 
+         path = data.uri
+         layer_name = format(hash(name) + hash(str(kwargs)), 'x').replace("-", "Z")
+ 
+-        # GeoTrellis ingest
+-        rdd = geotiff_rdd(geopysc, SPATIAL, path, maxTileSize=256, numPartitions=64)
+-        reprojected = rdd #reproject(geopysc, rdd, "EPSG:3857")
+-        (_, metadata) = collect_pyramid_metadata(geopysc,
+-                                                 SPATIAL,
+-                                                 reprojected,
+-                                                 crs="EPSG:3857",
+-                                                 tile_size=256)
+-        laid_out = tile_to_layout(geopysc, SPATIAL, reprojected, metadata)
+-        pyramided = pyramid(geopysc,
+-                            SPATIAL,
+-                            laid_out,
+-                            metadata,
+-                            256,
+-                            max_zoom,
+-                            0)
+-        for zoom, layer_rdd, layer_metadata in pyramided:
+-            write(geopysc,
+-                  SPATIAL,
+-                  self.catalog,
+-                  layer_name,
+-                  zoom,
+-                  layer_rdd,
+-                  layer_metadata)
++        # # GeoTrellis ingest
++        # rdd = geotiff_rdd(geopysc, SPATIAL, path, maxTileSize=256, numPartitions=64)
++        # reprojected = rdd #reproject(geopysc, rdd, "EPSG:3857")
++        # (_, metadata) = collect_pyramid_metadata(geopysc,
++        #                                          SPATIAL,
++        #                                          reprojected,
++        #                                          crs="EPSG:3857",
++        #                                          tile_size=256)
++        # laid_out = tile_to_layout(geopysc, SPATIAL, reprojected, metadata)
++        # pyramided = pyramid(geopysc,
++        #                     SPATIAL,
++        #                     laid_out,
++        #                     metadata,
++        #                     256,
++        #                     max_zoom,
++        #                     0)
++        # for zoom, layer_rdd, layer_metadata in pyramided:
++        #     write(geopysc,
++        #           SPATIAL,
++        #           self.catalog,
++        #           layer_name,
++        #           zoom,
++        #           layer_rdd,
++        #           layer_metadata)
+ 
+         return self.base_url + "/" + layer_name
