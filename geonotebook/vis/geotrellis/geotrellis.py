@@ -30,36 +30,22 @@ class GeoTrellis(object):
 
     def ingest(self, data, geopysc, max_zoom, name=None, **kwargs):
         from geopyspark.geotrellis.catalog import write
-        from geopyspark.geotrellis.constants import SPATIAL
-        from geopyspark.geotrellis.geotiff_rdd import geotiff_rdd
-        from geopyspark.geotrellis.tile_layer import collect_pyramid_metadata, tile_to_layout, pyramid, reproject
+        from geopyspark.geotrellis.constants import SPATIAL, ZOOM
+        from geopyspark.geotrellis.geotiff_rdd import get
 
         path = data.uri
         layer_name = format(hash(name) + hash(str(kwargs)), 'x').replace("-", "Z")
 
         # GeoTrellis ingest
-        rdd = geotiff_rdd(geopysc, SPATIAL, path, maxTileSize=256, numPartitions=64)
-        reprojected = rdd #reproject(geopysc, rdd, "EPSG:3857")
-        (_, metadata) = collect_pyramid_metadata(geopysc,
-                                                 SPATIAL,
-                                                 reprojected,
-                                                 crs="EPSG:3857",
-                                                 tile_size=256)
-        laid_out = tile_to_layout(geopysc, SPATIAL, reprojected, metadata)
-        pyramided = pyramid(geopysc,
-                            SPATIAL,
-                            laid_out,
-                            metadata,
-                            256,
-                            max_zoom,
-                            0)
-        for zoom, layer_rdd, layer_metadata in pyramided:
-            write(geopysc,
-                  SPATIAL,
-                  self.catalog,
-                  layer_name,
-                  zoom,
-                  layer_rdd,
-                  layer_metadata)
+        rdd = get(geopysc, SPATIAL, path, maxTileSize=256, numPartitions=64)
+        metadata = rdd.collect_metadata()
+
+        laid_out = rdd.tile_to_layout(metadata)
+        reprojected = laid_out.reproject("EPSG:3857", scheme=ZOOM)
+
+        pyramided = reprojected.pyramid(max_zoom, 0)
+
+        for layer_rdd in pyramided:
+            write(self.catalog, layer_name, layer_rdd)
 
         return self.base_url + "/" + layer_name
