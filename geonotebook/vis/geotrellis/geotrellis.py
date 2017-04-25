@@ -41,7 +41,7 @@ class GeoTrellis(object):
         metadata = rdd.collect_metadata()
 
         laid_out = rdd.tile_to_layout(metadata)
-        reprojected = rdd.reproject("EPSG:3857", sheme=ZOOM)
+        reprojected = laid_out.reproject("EPSG:3857", scheme=ZOOM)
 
         pyramided = reprojected.pyramid(max_zoom, 0)
 
