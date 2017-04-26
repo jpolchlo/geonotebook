@@ -391,8 +391,21 @@ class Geonotebook(object):
         if layer_type != 'annotation':
             kwargs['zIndex'] = len(self.layers)
 
+        try:
+            from pyspark import RDD
+            def isRDD(data):
+                return isinstance(data, RDD)
+        except:
+            def isRDD(data):
+                return False
+
         # HACK:  figure out a way to do this without so many conditionals
-        if isinstance(data, RasterData):
+        if isRDD(data):
+            name = str(data)
+            layer = SimpleLayer(
+                name, self._remote, data=data, vis_url=vis_url, **kwargs
+            )
+        elif isinstance(data, RasterData):
             # TODO verify layer exists in geoserver?
             name = data.name if name is None else name
 
