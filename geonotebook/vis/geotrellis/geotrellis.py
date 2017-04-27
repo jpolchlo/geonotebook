@@ -1,24 +1,42 @@
-# import notebook
-# import os
-# import tornado.web
+import notebook
+import os
+import requests
+import tornado.web
 
-# from notebook.base.handlers import IPythonHandler
-# from notebook.utils import url_path_join as ujoin
+from notebook.base.handlers import IPythonHandler
+from notebook.utils import url_path_join as ujoin
 # from tornado import gen
 # from tornado.web import URLSpec
 import threading
 import time
 
-from .flask import moop
+from .server import moop
 
 
 # jupyterhub --no-ssl --Spawner.notebook_dir=/home/hadoop
 
+class GeoTrellisHandler(IPythonHandler):
+
+    def initialize(self):
+        pass
+
+    def get(self, rdd, x, y, zoom, **kwargs):
+        url = "http://localhost:%d/%s/%s/%s/%s.png" % (8033, rdd, zoom, x, y)
+        try:
+            response = requests.get(url)
+            png = response.content
+            self.set_header('Content-Type', 'image/png')
+            self.write(png)
+            self.finish()
+        except:
+            self.set_header('Content-Type', 'text/html')
+            self.set_status(404)
+            self.finish()
+
 class GeoTrellis(object):
 
-    def __init__(self, config, catalog, url):
+    def __init__(self, config, url):
         self.base_url = url
-        self.catalog = catalog
 
     def start_kernel(self, kernel):
         pass
@@ -27,12 +45,13 @@ class GeoTrellis(object):
         pass
 
     def initialize_webapp(self, config, webapp):
-        pass
+        pattern = r'/user/[^/]+/geotrellis/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.png.*'
+        webapp.add_handlers(r'.*', [(pattern, GeoTrellisHandler)])
 
     def get_params(self, name, data, **kwargs):
         return {}
 
-    def ingest(self, data, geopysc, max_zoom, name=None, **kwargs):
+    def ingest(self, data, max_zoom, name=None, **kwargs):
         # from geopyspark.geotrellis.catalog import write
         # from geopyspark.geotrellis.constants import SPATIAL, ZOOM
         # from geopyspark.geotrellis.geotiff_rdd import get
@@ -56,9 +75,3 @@ class GeoTrellis(object):
         t.start()
 
         return self.base_url + "/" + layer_name
-
-    def disgorge(self, data, name=None, **kwargs):
-        print("XXX")
-        print(data)
-        print(name)
-        print(kwargs)
