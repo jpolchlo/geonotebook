@@ -19,21 +19,21 @@ from setuptools.command.sdist import sdist
 
 PY3 = (sys.version_info[0] >= 3)
 
-if PY3:
-    try:
-        import mapnik # noqa
-    except ImportError:
-        print("""
+# if PY3:
+#     try:
+#         import mapnik # noqa
+#     except ImportError:
+#         print("""
 
-Python bindings for Mapnik (https://github.com/mapnik/python-mapnik) are
-required to run GeoNotebook. Unfortunately there are no pip install-able
-versions of the bindings for Python 3. The Mapnik bindings will compile
-under Python 3 but they must be compiled and installed from source.
-Please follow the instructions on the mapnik/python-mapnik repository,
-ensuring you can import mapnik before continuing to install GeoNotebook
-using Python 3.
-        """)
-        sys.exit(1)
+# Python bindings for Mapnik (https://github.com/mapnik/python-mapnik) are
+# required to run GeoNotebook. Unfortunately there are no pip install-able
+# versions of the bindings for Python 3. The Mapnik bindings will compile
+# under Python 3 but they must be compiled and installed from source.
+# Please follow the instructions on the mapnik/python-mapnik repository,
+# ensuring you can import mapnik before continuing to install GeoNotebook
+# using Python 3.
+#         """)
+#         sys.exit(1)
 
 
 def post_install(func, **kwargs):
@@ -277,7 +277,7 @@ setup(
         "jupyter_client",
         "notebook",
         "fiona",
-        "mapnik",
+        # "mapnik",
         "shapely"
     ],
     cmdclass={
