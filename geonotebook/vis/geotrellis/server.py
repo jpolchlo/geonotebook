@@ -5,6 +5,7 @@ def moop(n):
 
     from flask import Flask
     from flask import make_response
+    from flask_cors import cross_origin
     from PIL import Image
 
     app = Flask(__name__)
@@ -15,6 +16,7 @@ def moop(n):
         return 'pong\n'
 
     @app.route("/<rdd>/<int:zoom>/<int:x>/<int:y>.png")
+    @cross_origin()
     def tile(rdd, zoom, x, y):
         arr = np.zeros([256, 256]) + 127
         image = Image.fromarray(arr.astype('uint8')).convert('L')
