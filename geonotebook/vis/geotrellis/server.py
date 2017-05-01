@@ -1,6 +1,7 @@
 import io
 import numpy as np
 import rasterio
+import threading
 import time
 
 from PIL import Image
@@ -26,6 +27,7 @@ def alpha(x):
 
 clamp = np.vectorize(clamp)
 alpha = np.vectorize(alpha)
+lock = threading.Lock()
 
 def moop(pyramids):
     from flask import Flask, make_response, abort
@@ -45,12 +47,19 @@ def moop(pyramids):
 
         # fetch data
         try:
+            lock.acquire()
             pyramid = pyramids[layer_name]
             rdd = pyramid[zoom]
             tile = rdd.lookup(col=x, row=y)
             arr = tile[0]['data']
         except:
+            arr = None
+        finally:
+            lock.release()
+
+        if arr == None:
             abort(404)
+
         bands = arr.shape[0]
         if bands >= 3:
             bands = 3
