@@ -438,10 +438,6 @@ class Geonotebook(object):
                 )
 
         def _add_layer(layer_name):
-            moop = open("/tmp/moop.txt", "a")
-            moop.write(layer_name + "\n")
-            moop.close()
-            print(layer_name)
             self.layers.append(layer)
 
         return self._remote.add_layer(layer.name, layer.vis_url,
@@ -457,7 +453,11 @@ class Geonotebook(object):
         if hasattr(layer_name, 'name'):
             layer_name = layer_name.name
 
+        vis_server = Config().vis_server
+
         def _remove_layer(layer_name):
+            if "disgorge" in dir(vis_server):
+                vis_server.disgorge(layer_name)
             self.layers.remove(layer_name)
 
         cb = self._remote.remove_layer(layer_name).then(

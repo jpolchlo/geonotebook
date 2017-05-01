@@ -52,6 +52,10 @@ class GeoTrellis(object):
     def get_params(self, name, data, **kwargs):
         return {}
 
+    def disgorge(self, name):
+        if name in self.pyramids:
+            del self.pyramids[name]
+
     def ingest(self, data, name, **kwargs):
         from geopyspark.geotrellis.rdd import RasterRDD, TiledRasterRDD
         from geopyspark.geotrellis.constants import ZOOM
