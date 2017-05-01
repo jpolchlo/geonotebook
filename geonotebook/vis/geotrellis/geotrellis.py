@@ -53,14 +53,15 @@ class GeoTrellis(object):
         return {}
 
     def disgorge(self, name):
+        moop = open("/tmp/moop.txt", "a")
+        moop.write(name + "\n")
+        moop.close()
         if name in self.pyramids:
             del self.pyramids[name]
 
     def ingest(self, data, name, **kwargs):
         from geopyspark.geotrellis.rdd import RasterRDD, TiledRasterRDD
         from geopyspark.geotrellis.constants import ZOOM
-
-        layer_name = name
 
         if isinstance(data, RasterRDD):
             rdd = data
@@ -74,7 +75,7 @@ class GeoTrellis(object):
         rdds = {}
         for layer_rdd in reprojected.pyramid(reprojected.zoom_level, 0):
             rdds[layer_rdd.zoom_level] = layer_rdd
-        self.pyramids.update({layer_name: rdds})
+        self.pyramids.update({name: rdds})
 
         if self.server_active == False:
             t = threading.Thread(target=moop, args=(self.pyramids,))
@@ -83,4 +84,4 @@ class GeoTrellis(object):
 
         self.base_url = "http://localhost:8000/user/hadoop/geotrellis" # XXX
         port = 8033
-        return self.base_url + "/" + str(port) + "/" + layer_name
+        return self.base_url + "/" + str(port) + "/" + name

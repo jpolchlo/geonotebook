@@ -402,8 +402,9 @@ class Geonotebook(object):
 
         # HACK:  figure out a way to do this without so many conditionals
         if isRDD(data):
-            name = format(hash(str(name) + str(vis_url) + str(kwargs) + str(data)), 'x') \
-                         .replace("-", "Z")
+            if name == None:
+                raise Exception
+
             layer = SimpleLayer(
                 name, self._remote, data=data, vis_url=vis_url, **kwargs
             )
@@ -455,10 +456,13 @@ class Geonotebook(object):
 
         vis_server = Config().vis_server
 
-        def _remove_layer(layer_name):
+        def _remove_layer(_layer_name):
             if "disgorge" in dir(vis_server):
+                moop = open("/tmp/snah.txt", "a")
+                moop.write(layer_name + "\n")
+                moop.close()
                 vis_server.disgorge(layer_name)
-            self.layers.remove(layer_name)
+            self.layers.remove(_layer_name)
 
         cb = self._remote.remove_layer(layer_name).then(
             _remove_layer, self.rpc_error).catch(self.callback_error)
