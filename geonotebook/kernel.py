@@ -402,7 +402,8 @@ class Geonotebook(object):
 
         # HACK:  figure out a way to do this without so many conditionals
         if isRDD(data):
-            name = str(data)
+            name = format(hash(str(name) + str(vis_url) + str(kwargs) + str(data)), 'x') \
+                         .replace("-", "Z")
             layer = SimpleLayer(
                 name, self._remote, data=data, vis_url=vis_url, **kwargs
             )
@@ -437,6 +438,10 @@ class Geonotebook(object):
                 )
 
         def _add_layer(layer_name):
+            moop = open("/tmp/moop.txt", "a")
+            moop.write(layer_name + "\n")
+            moop.close()
+            print(layer_name)
             self.layers.append(layer)
 
         return self._remote.add_layer(layer.name, layer.vis_url,
