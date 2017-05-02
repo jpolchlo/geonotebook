@@ -32,7 +32,6 @@ lock = threading.Lock()
 def moop(pyramids):
     from flask import Flask, make_response, abort
     from flask_cors import cross_origin
-    from PIL import Image
 
     app = Flask(__name__)
     app.reader = None
@@ -84,4 +83,5 @@ def moop(pyramids):
         response.headers['Content-Type'] = 'image/png'
         return response
 
-    app.run(host='0.0.0.0', port=8033)
+    port = 8033
+    app.run(host='0.0.0.0', port=port)
