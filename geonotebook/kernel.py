@@ -392,9 +392,10 @@ class Geonotebook(object):
             kwargs['zIndex'] = len(self.layers)
 
         try:
-            from pyspark import RDD
+            from geopyspark.geotrellis.rdd import RasterRDD, TiledRasterRDD
+
             def isRDD(data):
-                return isinstance(data, RDD)
+                return (isinstance(data, RasterRDD) or isinstance(data, TiledRasterRDD))
         except:
             def isRDD(data):
                 return False
