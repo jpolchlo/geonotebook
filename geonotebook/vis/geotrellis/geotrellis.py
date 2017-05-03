@@ -23,7 +23,7 @@ class GeoTrellisHandler(IPythonHandler):
                 self.write(png)
                 self.finish()
             else:
-                self.set_header('Content-Type', 'text/png')
+                self.set_header('Content-Type', 'text/html')
                 self.set_status(404)
                 self.finish()
         except:
