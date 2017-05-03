@@ -444,13 +444,9 @@ class Geonotebook(object):
         if hasattr(layer_name, 'name'):
             layer_name = layer_name.name
 
-        vis_server = Config().vis_server
-
         def _remove_layer(_layer_name):
+            vis_server = Config().vis_server
             if "disgorge" in dir(vis_server):
-                moop = open("/tmp/snah.txt", "a")
-                moop.write(layer_name + "\n")
-                moop.close()
                 vis_server.disgorge(layer_name)
             self.layers.remove(_layer_name)
 

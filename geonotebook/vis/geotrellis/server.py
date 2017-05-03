@@ -31,7 +31,6 @@ lock = threading.Lock()
 
 def moop(pyramids):
     from flask import Flask, make_response, abort
-    from flask_cors import cross_origin
 
     app = Flask(__name__)
     app.reader = None
@@ -40,8 +39,19 @@ def moop(pyramids):
     def ping():
         return time.strftime("%H:%M:%S")
 
-    @app.route("/<layer_name>/<int:x>/<int:y>/<int:zoom>.png")
-    @cross_origin()
+    @app.route("/exists/<layer_name>")
+    def exists(layer_name):
+        return str(layer_name in pyramids)
+
+    @app.route("/remove/<layer_name>")
+    def remove(layer_name):
+        if layer_name in pyramids:
+            del pyramids[layer_name]
+            return 'yes'
+        else:
+            return 'no'
+
+    @app.route("/tile/<layer_name>/<int:x>/<int:y>/<int:zoom>.png")
     def tile(layer_name, x, y, zoom):
 
         # fetch data

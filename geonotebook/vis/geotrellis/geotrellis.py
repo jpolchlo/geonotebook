@@ -14,7 +14,7 @@ class GeoTrellisHandler(IPythonHandler):
         pass
 
     def get(self, port, layer_name, x, y, zoom, **kwargs):
-        url = "http://localhost:%s/%s/%s/%s/%s.png" % (port, layer_name, x, y, zoom)
+        url = "http://localhost:%s/tile/%s/%s/%s/%s.png" % (port, layer_name, x, y, zoom)
         try:
             response = requests.get(url)
             if response.status_code == requests.codes.ok:
@@ -36,8 +36,8 @@ class GeoTrellis(object):
     def __init__(self, config, url):
         self.base_url = url
         self.pyramids = {}
-        self.info = {}
         self.server_active = False
+        self.port = 8033 # XXX
 
     def start_kernel(self, kernel):
         pass
@@ -53,15 +53,17 @@ class GeoTrellis(object):
         return {}
 
     def disgorge(self, name):
-        if name in self.pyramids:
-            del self.pyramids[name]
+        url = "http://localhost:%s/remove/%s" % (self.port, name)
+        response = requests.get(url)
+        status_code = response.status_code
+        print(status_code)
+        return status_code
 
     def ingest(self, data, name, **kwargs):
         from geopyspark.geotrellis.rdd import RasterRDD, TiledRasterRDD
         from geopyspark.geotrellis.constants import ZOOM
 
         rdd = data.rdd
-
         if isinstance(rdd, RasterRDD):
             metadata = rdd.collect_metadata()
             laid_out = rdd.tile_to_layout(metadata)
@@ -75,7 +77,8 @@ class GeoTrellis(object):
         rdds = {}
         for layer_rdd in reprojected.pyramid(reprojected.zoom_level, 0):
             rdds[layer_rdd.zoom_level] = layer_rdd
-        self.pyramids.update({name: rdds})
+        # self.pyramids.update({name: rdds})
+        self.pyramids[name] = rdds
 
         if self.server_active == False:
             t = threading.Thread(target=moop, args=(self.pyramids,))
@@ -83,5 +86,4 @@ class GeoTrellis(object):
             self.server_active = True
 
         self.base_url = "http://localhost:8000/user/hadoop/geotrellis" # XXX
-        port = 8033
-        return self.base_url + "/" + str(port) + "/" + name
+        return self.base_url + "/" + str(self.port) + "/" + name
