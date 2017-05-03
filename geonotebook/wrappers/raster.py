@@ -9,6 +9,26 @@ import pkg_resources as pr
 from shapely.geometry import Polygon
 
 
+class RddRasterData(object):
+
+    def __init__(self, rdd, name=None, remapper=None):
+        from geopyspark.geotrellis.rdd import RasterRDD, TiledRasterRDD
+
+        if not (isinstance(rdd, RasterRDD) or isinstance(rdd, TiledRasterRDD)):
+            raise Exception
+
+        self.rdd = rdd
+
+        if not remapper:
+            self.remapper = lambda x: x
+        else:
+            self.remapper = remapper
+
+        if not name:
+            self.name = str(abs(hash(rdd) + hash(remapper)))
+        else:
+            self.name = name
+
 class RasterData(collections.Sequence):
     _default_schema = 'file'
 

@@ -19,7 +19,7 @@ from .layers import (AnnotationLayer,
                      VectorLayer)
 
 from .utils import get_kernel_id
-from .wrappers import RasterData, RasterDataCollection, VectorData
+from .wrappers import RddRasterData, RasterData, RasterDataCollection, VectorData
 
 
 class Remote(object):
@@ -391,19 +391,9 @@ class Geonotebook(object):
         if layer_type != 'annotation':
             kwargs['zIndex'] = len(self.layers)
 
-        try:
-            from geopyspark.geotrellis.rdd import RasterRDD, TiledRasterRDD
-
-            def isRDD(data):
-                return (isinstance(data, RasterRDD) or isinstance(data, TiledRasterRDD))
-        except:
-            def isRDD(data):
-                return False
-
         # HACK:  figure out a way to do this without so many conditionals
-        if isRDD(data):
-            if name == None:
-                raise Exception
+        if isinstance(data, RddRasterData):
+            name = data.name
 
             layer = SimpleLayer(
                 name, self._remote, data=data, vis_url=vis_url, **kwargs

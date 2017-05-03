@@ -53,9 +53,6 @@ class GeoTrellis(object):
         return {}
 
     def disgorge(self, name):
-        moop = open("/tmp/moop.txt", "a")
-        moop.write(name + "\n")
-        moop.close()
         if name in self.pyramids:
             del self.pyramids[name]
 
@@ -63,14 +60,17 @@ class GeoTrellis(object):
         from geopyspark.geotrellis.rdd import RasterRDD, TiledRasterRDD
         from geopyspark.geotrellis.constants import ZOOM
 
-        if isinstance(data, RasterRDD):
-            rdd = data
+        rdd = data.rdd
+
+        if isinstance(rdd, RasterRDD):
             metadata = rdd.collect_metadata()
             laid_out = rdd.tile_to_layout(metadata)
             reprojected = laid_out.reproject("EPSG:3857", scheme=ZOOM)
-        elif isinstance(data, TiledRasterRDD):
-            laid_out = data
+        elif isinstance(rdd, TiledRasterRDD):
+            laid_out = rdd
             reprojected = laid_out.reproject("EPSG:3857", scheme=ZOOM)
+        else:
+            raise Exception
 
         rdds = {}
         for layer_rdd in reprojected.pyramid(reprojected.zoom_level, 0):
