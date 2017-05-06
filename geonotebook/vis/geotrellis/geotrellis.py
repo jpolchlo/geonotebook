@@ -3,6 +3,7 @@ import threading
 import time
 
 from notebook.base.handlers import IPythonHandler
+from random import randint
 from .server import moop
 
 
@@ -37,7 +38,7 @@ class GeoTrellis(object):
         self.base_url = url
         self.pyramids = {}
         self.server_active = False
-        self.port = 8033 # XXX
+        self.port = randint(49152, 65535) # XXX
 
     def start_kernel(self, kernel):
         pass
@@ -81,7 +82,7 @@ class GeoTrellis(object):
         self.pyramids[name] = rdds
 
         if self.server_active == False:
-            t = threading.Thread(target=moop, args=(self.pyramids,))
+            t = threading.Thread(target=moop, args=(self.pyramids, self.port))
             t.start()
             self.server_active = True
 

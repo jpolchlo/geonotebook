@@ -29,27 +29,28 @@ clamp = np.vectorize(clamp)
 alpha = np.vectorize(alpha)
 lock = threading.Lock()
 
-def moop(pyramids):
+def moop(pyramids, port):
     from flask import Flask, make_response, abort
 
     app = Flask(__name__)
     app.reader = None
 
-    @app.route('/time')
+    @app.route("/time")
     def ping():
-        return time.strftime("%H:%M:%S")
+        return time.strftime("%H:%M:%S") + "\n"
+
 
     @app.route("/exists/<layer_name>")
     def exists(layer_name):
-        return str(layer_name in pyramids)
+        return str(layer_name in pyramids) + "\n"
 
     @app.route("/remove/<layer_name>")
     def remove(layer_name):
         if layer_name in pyramids:
             del pyramids[layer_name]
-            return 'yes'
+            return "yes\n"
         else:
-            return 'no'
+            return "no\n"
 
     @app.route("/tile/<layer_name>/<int:x>/<int:y>/<int:zoom>.png")
     def tile(layer_name, x, y, zoom):
@@ -93,5 +94,4 @@ def moop(pyramids):
         response.headers['Content-Type'] = 'image/png'
         return response
 
-    port = 8033
     app.run(host='0.0.0.0', port=port)
