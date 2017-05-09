@@ -11,21 +11,19 @@ from shapely.geometry import Polygon
 
 class RddRasterData(object):
 
-    def __init__(self, rdd, name=None, remapper=None):
+    def __init__(self, rdd, name=None, rampname="Viridis"):
         from geopyspark.geotrellis.rdd import RasterRDD, TiledRasterRDD
+        from geopyspark.geotrellis.render import PngRDD
 
-        if not (isinstance(rdd, RasterRDD) or isinstance(rdd, TiledRasterRDD)):
+        if not (isinstance(rdd, RasterRDD) or isinstance(rdd, TiledRasterRDD)) or isinstance(rdd, PngRDD):
             raise Exception
 
         self.rdd = rdd
 
-        if not remapper:
-            self.remapper = lambda x: x
-        else:
-            self.remapper = remapper
+        self.rampname = rampname
 
         if not name:
-            self.name = str(abs(hash(rdd) + hash(remapper)))
+            self.name = str(abs(hash(rdd) + hash(rampname)))
         else:
             self.name = name
 

@@ -62,6 +62,7 @@ def moop(pyramids, port):
             rdd = pyramid[zoom]
             tile = rdd.lookup(col=x, row=y)
             arr = tile[0]['data']
+            # nodata = -32768 #tile[0]['no_data_value']
         except:
             arr = None
         finally:
@@ -79,13 +80,16 @@ def moop(pyramids, port):
 
         # create tile
         if bands == 3:
-            images = [make_image(clamp(arr)) for arr in arrs]
-            images.append(make_image(alpha(arrs[0])))
+            images = [make_image(clamp(remap(arr))) for arr in arrs]
+            alfa = alpha(arrs[0])
+            # alfa[arrs[0] == nodata] = 0
+            images.append(make_image(alfa))
             image = Image.merge('RGBA', images)
         else:
-            gray = make_image(clamp(arrs[0]))
-            alfa = make_image(alpha(arrs[0]))
-            image = Image.merge('RGBA', list(gray, gray, gray, alfa))
+            gray = make_image(clamp(remap(arrs[0])))
+            alfa = alpha(arrs[0])
+            # alfa[arrs[0] == nodata] = 0
+            image = Image.merge('RGBA', list(gray, gray, gray, make_image(alfa)))
 
         # return tile
         bio = io.BytesIO()

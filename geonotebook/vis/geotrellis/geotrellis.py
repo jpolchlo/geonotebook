@@ -62,16 +62,21 @@ class GeoTrellis(object):
 
     def ingest(self, data, name, **kwargs):
         from geopyspark.geotrellis.rdd import RasterRDD, TiledRasterRDD
+        from geopyspark.geotrellis.render import PngRDD
         from geopyspark.geotrellis.constants import ZOOM
 
         rdd = data.rdd
         if isinstance(rdd, RasterRDD):
             metadata = rdd.collect_metadata()
             laid_out = rdd.tile_to_layout(metadata)
-            reprojected = laid_out.reproject("EPSG:3857", scheme=ZOOM)
+            # reprojected = laid_out.reproject("EPSG:3857", scheme=ZOOM)
+            png = PngRDD.makePyramid(laid_out, data.rampname)
         elif isinstance(rdd, TiledRasterRDD):
             laid_out = rdd
-            reprojected = laid_out.reproject("EPSG:3857", scheme=ZOOM)
+            # reprojected = laid_out.reproject("EPSG:3857", scheme=ZOOM)
+            png = PngRDD.makePyramid(laid_out, data.rampname)
+        elif isinstance(rdd, PngRDD):
+            png = rdd
         else:
             raise Exception
 
