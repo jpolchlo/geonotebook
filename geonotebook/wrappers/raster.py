@@ -15,7 +15,7 @@ class RddRasterData(object):
         from geopyspark.geotrellis.rdd import RasterRDD, TiledRasterRDD
         from geopyspark.geotrellis.render import PngRDD
 
-        if not (isinstance(rdd, RasterRDD) or isinstance(rdd, TiledRasterRDD)) or isinstance(rdd, PngRDD):
+        if not (isinstance(rdd, RasterRDD) or isinstance(rdd, TiledRasterRDD) or isinstance(rdd, PngRDD)):
             raise Exception
 
         self.rdd = rdd

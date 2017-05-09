@@ -63,7 +63,7 @@ class GeoTrellis(object):
     def ingest(self, data, name, **kwargs):
         from geopyspark.geotrellis.rdd import RasterRDD, TiledRasterRDD
         from geopyspark.geotrellis.render import PngRDD
-        from geopyspark.geotrellis.constants import ZOOM
+        # from geopyspark.geotrellis.constants import ZOOM
 
         rdd = data.rdd
         if isinstance(rdd, RasterRDD):
@@ -80,16 +80,17 @@ class GeoTrellis(object):
         else:
             raise Exception
 
-        rdds = {}
-        for layer_rdd in reprojected.pyramid(reprojected.zoom_level, 0):
-            rdds[layer_rdd.zoom_level] = layer_rdd
-        # self.pyramids.update({name: rdds})
-        self.pyramids[name] = rdds
+        # rdds = {}
+        # for layer_rdd in reprojected.pyramid(reprojected.zoom_level, 0):
+        #     rdds[layer_rdd.zoom_level] = layer_rdd
+        # # self.pyramids.update({name: rdds})
+        # self.pyramids[name] = rdds
 
-        if self.server_active == False:
-            t = threading.Thread(target=moop, args=(self.pyramids, self.port))
-            t.start()
-            self.server_active = True
+        # if self.server_active == False:
+        t = threading.Thread(target=moop, args=(png, # self.pyramids
+                                                self.port))
+        t.start()
+        #  self.server_active = True
 
         self.base_url = "http://localhost:8000/user/hadoop/geotrellis" # XXX
         return self.base_url + "/" + str(self.port) + "/" + name
