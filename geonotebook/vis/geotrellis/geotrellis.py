@@ -102,54 +102,22 @@ class GeoTrellis(object):
     def ingest(self, data, name, **kwargs):
         from geopyspark.geotrellis.rdd import RasterRDD, TiledRasterRDD
         from geopyspark.geotrellis.render import PngRDD
-        # from geopyspark.geotrellis.constants import ZOOM
 
-        inproc_server_states = kwargs.pop('inproc_server_states', None)
-        if inproc_server_states is None:
-            raise Exception(
-                "GeoTrellis vis server requires kernel_id as kwarg to ingest!")
-
-        if not "geotrellis" in inproc_server_states:
-            inproc_server_states["geotrellis"] = { "ports" : {} }
-
-        server_port = randint(49152, 65535)
-        while server_port in inproc_server_states['geotrellis']['ports'].values():
-            server_port = randint(49152, 65535)
-
-        # TODO: refactor this to different methods?
-        if isinstance(data, RddRasterData):
-            rdd = data.rdd
-            if isinstance(rdd, RasterRDD):
-                metadata = rdd.collect_metadata()
-                laid_out = rdd.tile_to_layout(metadata)
-                reprojected = laid_out.reproject("EPSG:3857", scheme=ZOOM)
-            elif isinstance(rdd, TiledRasterRDD):
-                laid_out = rdd
-                reprojected = laid_out.reproject("EPSG:3857", scheme=ZOOM)
-            else:
-                raise Exception("RddRasterData date must be an RDD, found %s" % (type(data)))
-
-            rdds = {}
-            for layer_rdd in reprojected.pyramid(reprojected.zoom_level, 0):
-                rdds[layer_rdd.zoom_level] = layer_rdd
-
-            t = threading.Thread(target=rdd_server, args=(server_port, rdds))
-            t.start()
-        elif isinstance(data, GeoTrellisCatalogLayerData):
-            render_tile = kwargs.pop('render_tile', None)
-            if render_tile is None:
-                raise Exception("GeoTrellis Layers require render_tile function.")
-            args =(server_port,
-                   data.value_reader,
-                   data.layer_name,
-                   data.key_type,
-                   render_tile)
-            t = threading.Thread(target=catalog_layer_server, args=args)
-            t.start()
+        rdd = data.rdd
+        if isinstance(rdd, RasterRDD):
+            metadata = rdd.collect_metadata()
+            laid_out = rdd.tile_to_layout(metadata)
+            png = PngRDD.makePyramid(laid_out, data.rampname)
+        elif isinstance(rdd, TiledRasterRDD):
+            laid_out = rdd
+            png = PngRDD.makePyramid(laid_out, data.rampname)
+        elif isinstance(rdd, PngRDD):
+            png = rdd
         else:
-            raise Exception("GeoTrellis vis server cannot handle data of type %s" % (type(data)))
+            raise TypeError("Expected a RasterRDD, TiledRasterRDD, or PngRDD")
 
-        inproc_server_states['geotrellis']['ports'][name] = server_port
+        t = threading.Thread(target=moop, args=(png, self.port))
+        t.start()
 
-        base_url = "http://localhost:8000/user/hadoop/geotrellis" # TODO: Get rid of hardcoded user
-        return "%s/%d" % (base_url, server_port)
+        self.base_url = "http://localhost:8000/user/hadoop/geotrellis" # XXX
+        return self.base_url + "/" + str(self.port) + "/" + name

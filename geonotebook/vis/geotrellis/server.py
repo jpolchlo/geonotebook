@@ -9,8 +9,6 @@ import time
 from flask import Flask, make_response, abort, request
 from PIL import Image
 
-lock = threading.Lock()
-
 def make_image(arr):
     return Image.fromarray(arr.astype('uint8')).convert('L')
 
@@ -45,62 +43,30 @@ def set_server_routes(app):
     def ping():
         return time.strftime("%H:%M:%S") + "\n"
 
-    @app.route('/shutdown')
-    def shutdown():
-        shutdown_server()
-
-def make_tile_server(port, fn):
-    '''
-    Makes a tile server and starts it on the given port, using a function
-    that takes z, x, y as the tile route.
-    '''
-    app = Flask(__name__)
-    # logging.basicConfig(level=logging.DEBUG, format='%(relativeCreated)6d %(threadName)s %(message)s')
-
-    set_server_routes(app)
-
-    @app.route("/tile/<int:z>/<int:x>/<int:y>.png")
-    def tile(z, x, y):
-        try:
-            return fn(z, x, y)
-        except Exception as e:
-            return make_response("Tile route error: %s" % str(e), 500)
-
-    return app.run(host='0.0.0.0', port=port, threaded=True)
-
-def rdd_server(port, pyramid):
-    def tile(z, x, y):
-        # logging.debug("---------------DOES THIS SHOW UP")
+    @app.route("/tile/<layer_name>/<int:x>/<int:y>/<int:zoom>.png")
+    def tile(layer_name, x, y, zoom):
 
         # fetch data
-        rdd = pyramid[z]
-        tile = rdd.lookup(col=x, row=y)
+        try:
+            img = png.lookup(x, y, zoom)
+        except:
+            img = None
 
-        arr = tile[0]['data']
+        if img == None or len(img) == 0:
+            if png.debug:
+                image = Image.new('RGBA', (256,256))
+                draw = ImageDraw.Draw(image)
+                draw.rectangle([0, 0, 255, 255], outline=(255,0,0,255))
+                draw.line([(0,0),(255,255)], fill=(255,0,0,255))
+                draw.line([(0,255),(255,0)], fill=(255,0,0,255))
+                draw.text((136,122), str(x) + ', ' + str(y) + ', ' + str(zoom), fill=(255,0,0,255))
+                del draw
+                bio = io.BytesIO()
+                image.save(bio, 'PNG')
+                img = [bio.getvalue()]
+            else:
+                abort(404)
 
-        if arr == None:
-            abort(404)
-
-        bands = arr.shape[0]
-        if bands >= 3:
-            bands = 3
-        else:
-            bands = 1
-        arrs = [np.array(arr[i, :, :]).reshape(256, 256) for i in range(bands)]
-
-        # create tile
-        if bands == 3:
-            images = [make_image(clamp(arr)) for arr in arrs]
-            images.append(make_image(alpha(arrs[0])))
-            image = Image.merge('RGBA', images)
-        else:
-            gray = make_image(clamp(arrs[0]))
-            alfa = make_image(alpha(arrs[0]))
-            image = Image.merge('RGBA', list(gray, gray, gray, alfa))
-
-        # return tile
-        #bio = io.BytesIO(img[0])
-        #Image.open(bio)
         response = make_response(img[0])
         response.headers['Content-Type'] = 'image/png'
 
