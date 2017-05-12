@@ -8,7 +8,6 @@ import pkg_resources as pr
 
 from shapely.geometry import Polygon
 
-
 class RddRasterData(object):
 
     def __init__(self, rdd, name=None, rampname="Viridis"):
@@ -26,6 +25,16 @@ class RddRasterData(object):
             self.name = str(abs(hash(rdd) + hash(rampname)))
         else:
             self.name = name
+
+class GeoTrellisCatalogLayerData(object):
+
+    def __init__(self, geopysc, catalog_uri, layer_name, rdd_type, options=None):
+        from geopyspark.geotrellis.catalog import _construct_catalog, _mapped_cached
+        _construct_catalog(geopysc, catalog_uri, options)
+        catalog = _mapped_cached[catalog_uri]
+        self.value_reader = catalog.value_reader
+        self.layer_name = layer_name
+        self.key_type =  geopysc.map_key_input(rdd_type, True)
 
 class RasterData(collections.Sequence):
     _default_schema = 'file'

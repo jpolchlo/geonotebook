@@ -23,7 +23,7 @@ class GeonotebookLayer(object):
     # _expose_as lets us control whether or not a layer is
     # directly exposed as an attribute on a layer collection. It
     # is designed for layers added by the system that provide
-    # some kind of functionality (e.g. the annotatoin layer).
+    # some kind of functionality (e.g. the annotation layer).
     _expose_as = None
 
     # A class that serializes the layer's appearance.  Defaults
@@ -250,6 +250,33 @@ class SimpleLayer(DataLayer):
     def __repr__(self):
         return "<{}('{}')>".format(
             self.__class__.__name__, self.name.split("_")[0])
+
+class InProcessTileLayer(DataLayer):
+    def __init__(self, name, remote, data, inproc_server_states, vis_url=None, **kwargs):
+        super(InProcessTileLayer, self).__init__(
+            name, remote, data=data, vis_url=vis_url, **kwargs
+        )
+
+        if vis_url is None:
+            self.vis_url = self.config.vis_server.ingest(self.data,
+                                                         name=self.name,
+                                                         inproc_server_states=inproc_server_states,
+                                                         **self.vis_options.serialize())
+        else:
+            self.vis_url = vis_url
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def query_params(self):
+        return self.config.vis_server.get_params(
+            self.name, self.data, **self.vis_options.serialize())
+
+    def __repr__(self):
+        return "<{}('{}')>".format(
+            self.__class__.__name__, self.name)
 
 
 class TimeSeriesLayer(DataLayer):

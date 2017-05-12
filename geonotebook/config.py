@@ -56,6 +56,7 @@ class Config(object):
         except (AttributeError, configparser.NoOptionError):
             return logging.WARNING
 
+    ## Instantiates a vis server per call.
     @property
     def vis_server(self):
         vis_server_section = self.config.get("default", "vis_server")
@@ -77,4 +78,6 @@ class Config(object):
 
 for ep in pkg_resources.iter_entry_points(
         group='geonotebook.vis.server'):
+    print(ep.name)
+    print(ep.load())
     Config.register_vis_server(ep.name, ep.load())

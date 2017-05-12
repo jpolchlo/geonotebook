@@ -15,11 +15,16 @@ from .layers import (AnnotationLayer,
                      GeonotebookLayerCollection,
                      NoDataLayer,
                      SimpleLayer,
+                     InProcessTileLayer,
                      TimeSeriesLayer,
                      VectorLayer)
 
 from .utils import get_kernel_id
-from .wrappers import RddRasterData, RasterData, RasterDataCollection, VectorData
+from .wrappers import (RddRasterData,
+                       GeoTrellisCatalogLayerData,
+                       RasterData,
+                       RasterDataCollection,
+                       VectorData)
 
 
 class Remote(object):
@@ -308,8 +313,11 @@ class Geonotebook(object):
         self.y = None
         self.z = None
         self.layers = GeonotebookLayerCollection([])
+        self.servers = { } # Dictionary servers.
 
         self._kernel = kernel
+
+        self._inproc_server_states = { }
 
     @property
     def kernel_id(self):
@@ -395,9 +403,23 @@ class Geonotebook(object):
         if isinstance(data, RddRasterData):
             name = data.name
 
-            layer = SimpleLayer(
-                name, self._remote, data=data, vis_url=vis_url, **kwargs
-            )
+            layer = InProcessTileLayer(name,
+                                       self._remote,
+                                       data=data,
+                                       inproc_server_states=self._inproc_server_states,
+                                       vis_url=vis_url,
+                                       **kwargs)
+
+        elif isinstance(data, GeoTrellisCatalogLayerData):
+            name = data.name
+
+            layer = InProcessTileLayer(name,
+                                       self._remote,
+                                       data=data,
+                                       inproc_server_states=self._inproc_server_states,
+                                       vis_url=vis_url,
+                                       **kwargs)
+
         elif isinstance(data, RasterData):
             # TODO verify layer exists in geoserver?
             name = data.name if name is None else name
@@ -445,10 +467,12 @@ class Geonotebook(object):
             layer_name = layer_name.name
 
         def _remove_layer(_layer_name):
+            print("Removing layer %s" % layer_name)
             vis_server = Config().vis_server
             if "disgorge" in dir(vis_server):
-                vis_server.disgorge(layer_name)
-            self.layers.remove(_layer_name)
+                print(" --Disgorging layer %s" % _layer_name)
+                vis_server.disgorge(layer_name, inproc_server_states=self._inproc_server_states)
+            self.layers.remove(layer_name)
 
         cb = self._remote.remove_layer(layer_name).then(
             _remove_layer, self.rpc_error).catch(self.callback_error)
