@@ -257,11 +257,14 @@ class InProcessTileLayer(DataLayer):
             name, remote, data=data, vis_url=vis_url, **kwargs
         )
 
+        vis_options = self.vis_options.serialize()
+        vis_options.update(kwargs)
+
         if vis_url is None:
             self.vis_url = self.config.vis_server.ingest(self.data,
                                                          name=self.name,
                                                          inproc_server_states=inproc_server_states,
-                                                         **self.vis_options.serialize())
+                                                         **vis_options)
         else:
             self.vis_url = vis_url
 

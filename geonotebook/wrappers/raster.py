@@ -10,7 +10,7 @@ from shapely.geometry import Polygon
 
 class RddRasterData(object):
 
-    def __init__(self, rdd, name=None, rampname="Viridis"):
+    def __init__(self, rdd, name=None):
         from geopyspark.geotrellis.rdd import RasterRDD, TiledRasterRDD
         from geopyspark.geotrellis.render import PngRDD
 
@@ -19,22 +19,35 @@ class RddRasterData(object):
 
         self.rdd = rdd
 
-        self.rampname = rampname
-
         if not name:
-            self.name = str(abs(hash(rdd) + hash(rampname)))
+            self.name = str(hash(rdd))
         else:
             self.name = name
 
 class GeoTrellisCatalogLayerData(object):
 
-    def __init__(self, geopysc, catalog_uri, layer_name, rdd_type, options=None):
+    def __init__(self,
+                 geopysc,
+                 catalog_uri,
+                 layer_name,
+                 key_type = None,
+                 tile_type = None,
+                 options = None,):
         from geopyspark.geotrellis.catalog import _construct_catalog, _mapped_cached
+        from geopyspark.geotrellis.constants import SPATIAL, TILE
+
+        if not key_type:
+            rdd_type = SPAITAL
+        if not tile_type:
+            tile_type = TILE
         _construct_catalog(geopysc, catalog_uri, options)
         catalog = _mapped_cached[catalog_uri]
+        self.catalog_uri = catalog_uri
         self.value_reader = catalog.value_reader
         self.layer_name = layer_name
-        self.key_type =  geopysc.map_key_input(rdd_type, True)
+        self.key_type =  geopysc.map_key_input(key_type, True)
+        self.tile_type = tile_type
+        self.avroregistry = geopysc.avroregistry
 
 class RasterData(collections.Sequence):
     _default_schema = 'file'

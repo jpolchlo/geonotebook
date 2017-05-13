@@ -411,7 +411,7 @@ class Geonotebook(object):
                                        **kwargs)
 
         elif isinstance(data, GeoTrellisCatalogLayerData):
-            name = data.name
+            name = "%s__%s" % (data.catalog_uri, data.layer_name)
 
             layer = InProcessTileLayer(name,
                                        self._remote,
