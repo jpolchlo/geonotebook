@@ -1,5 +1,6 @@
 from inspect import getargspec, getmembers, isfunction, ismethod
 from types import MethodType
+import json
 
 from ipykernel.ipkernel import IPythonKernel
 from promise import Promise
@@ -411,7 +412,7 @@ class Geonotebook(object):
                                        **kwargs)
 
         elif isinstance(data, GeoTrellisCatalogLayerData):
-            name = "%s__%s" % (data.catalog_uri, data.layer_name)
+            name = "%s__%s" % (hash(data.catalog_uri), data.layer_name)
 
             layer = InProcessTileLayer(name,
                                        self._remote,
@@ -467,10 +468,8 @@ class Geonotebook(object):
             layer_name = layer_name.name
 
         def _remove_layer(_layer_name):
-            print("Removing layer %s" % layer_name)
             vis_server = Config().vis_server
             if "disgorge" in dir(vis_server):
-                print(" --Disgorging layer %s" % _layer_name)
                 vis_server.disgorge(layer_name, inproc_server_states=self._inproc_server_states)
             self.layers.remove(layer_name)
 

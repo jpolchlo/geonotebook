@@ -7,9 +7,7 @@ import sys
 import time
 import traceback
 
-from tornado.wsgi import WSGIContainer
-from tornado.httpserver import HTTPServer
-from tornado.ioloop import IOLoop
+from gevent.pywsgi import WSGIServer
 
 from flask import Flask, make_response, abort, request
 from PIL import Image
@@ -22,31 +20,25 @@ def respond_with_image(image):
 
     return response
 
-def set_server_routes(app):
-    app.config['PROPAGATE_EXCEPTIONS'] = True
-
-    def shutdown_server():
-        func = request.environ.get('werkzeug.server.shutdown')
-        if func is None:
-            raise RuntimeError('Not running with the Werkzeug Server')
-        func()
-
-    @app.route("/time")
-    def ping():
-        return time.strftime("%H:%M:%S") + "\n"
-
-    @app.route('/shutdown')
-    def shutdown():
-        shutdown_server()
-
 def make_tile_server(port, fn):
     '''
     Makes a tile server and starts it on the given port, using a function
     that takes z, x, y as the tile route.
     '''
     app = Flask(__name__)
+    http_server = WSGIServer(('', port), app)
 
-    set_server_routes(app)
+    def shutdown():
+        time.sleep(0.5)
+        http_server.stop()
+
+    @app.route('/shutdown')
+    def shutdown():
+        try:
+            t = threading.Thread(target=shutdown)
+            t.start()
+        except Exception as e:
+            return make_response("Tile route error: %s - %s" % (str(e), traceback.format_exc()), 500)
 
     @app.route("/tile/<int:z>/<int:x>/<int:y>.png")
     def tile(z, x, y):
@@ -55,8 +47,7 @@ def make_tile_server(port, fn):
         except Exception as e:
             return make_response("Tile route error: %s - %s" % (str(e), traceback.format_exc()), 500)
 
-    # return app.run(host='0.0.0.0', port=port, threaded=True)
-    return app.run(host='0.0.0.0', port=port)
+    return http_server.serve_forever()
 
 def rdd_server(port, pyramid, render_tile):
     def tile(z, x, y):

@@ -25,15 +25,14 @@ class GeoTrellisTileHandler(IPythonHandler):
         print(url)
         try:
             response = requests.get(url)
-            print("RETURNED WITH %s" % (response.status_code))
+            print("TILE REQUEST RETURNED WITH %s" % (response.status_code))
             if response.status_code == requests.codes.ok:
                 png = response.content
                 self.set_header('Content-Type', 'image/png')
                 self.write(png)
                 self.finish()
             else:
-                print("NOT OK!: %s" % str(response))
-                print("NOT OK!: %s" % str(response.content))
+                print("TILE RESPONSE IS NOT OK!: %s - %s" % (str(response), str(response.content)))
                 self.set_header('Content-Type', 'text/html')
                 self.set_status(404)
                 self.finish()
@@ -95,7 +94,6 @@ class GeoTrellis(object):
                 response = requests.get(url)
                 status_code = response.status_code
                 inproc_server_states['geotrellis']['ports'].pop(name, None)
-                return status_code
             return None
         return None
 
@@ -152,6 +150,8 @@ class GeoTrellis(object):
                     render_tile)
             p = multiprocessing.Process(target=catalog_layer_server, args=args)
             p.start()
+            # t = threading.Thread(target=catalog_layer_server, args=args)
+            # t.start()
         else:
             raise TypeError("Expected a RasterRDD, TiledRasterRDD, or PngRDD")
 

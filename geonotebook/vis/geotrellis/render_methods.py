@@ -68,7 +68,7 @@ def rgba_functions(color_map):
         if v in m:
             return m[v][3]
         else:
-            return 0xFF
+            return 0x00
 
     return (np.vectorize(r), np.vectorize(g), np.vectorize(b), np.vectorize(a))
 
