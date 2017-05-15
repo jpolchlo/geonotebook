@@ -8,7 +8,9 @@ from geonotebook.wrappers import (RddRasterData,
                                   GeoTrellisCatalogLayerData)
 from random import randint
 from .server import (rdd_server,
-                     catalog_layer_server)
+                     catalog_layer_server,
+                     catalog_multilayer_server,
+                     png_layer_server)
 
 from .render_methods import render_default_rdd
 
@@ -49,18 +51,22 @@ class GeoTrellisShutdownHandler(IPythonHandler):
 
     def get(self, port):
         url = "http://localhost:%s/shutdown" % port
-        # try:
         response = requests.get(url)
-        if response.status_code == requests.codes.ok:
-            png = response.content
-            self.set_header('Content-Type', 'image/png')
-            self.write(png)
-            self.finish()
-        else:
-            self.set_header('Content-Type', 'text/html')
-            self.write(str(response.content))
-            self.set_status(500)
-            self.finish()
+        self.set_header('Content-Type', 'text/html')
+        self.write(str(response.content))
+        self.set_status(200)
+        self.finish()
+
+        # if response.status_code == requests.codes.ok:
+        #     self.set_header('Content-Type', 'text/html')
+        #     self.write(str(response.content))
+        #     self.set_status(200)
+        #     self.finish()
+        # else:
+        #     self.set_header('Content-Type', 'text/html')
+        #     self.write(str(response.content))
+        #     self.set_status(500)
+        #     self.finish()
 
 class GeoTrellis(object):
 
@@ -99,6 +105,7 @@ class GeoTrellis(object):
 
     def ingest(self, data, name, **kwargs):
         from geopyspark.geotrellis.rdd import RasterRDD, TiledRasterRDD
+        from geopyspark.geotrellis.render import PngRDD
         from geopyspark.geotrellis.constants import ZOOM
 
         inproc_server_states = kwargs.pop('inproc_server_states', None)
@@ -116,13 +123,9 @@ class GeoTrellis(object):
         # TODO: refactor this to different methods?
         if isinstance(data, RddRasterData):
             rdd = data.rdd
-            if isinstance(rdd, RasterRDD):
-                metadata = rdd.collect_metadata()
-                laid_out = rdd.tile_to_layout(metadata)
-                reprojected = laid_out.reproject("EPSG:3857", scheme=ZOOM)
-            elif isinstance(rdd, TiledRasterRDD):
-                laid_out = rdd
-                reprojected = laid_out.reproject("EPSG:3857", scheme=ZOOM)
+            if isinstance(rdd, PngRDD):
+                t = threading.Thread(target=png_layer_server, args=(server_port, rdd))
+                t.start()
             else:
                 raise Exception("RddRasterData data must be an RDD, found %s" % (type(data)))
 
@@ -141,6 +144,7 @@ class GeoTrellis(object):
             render_tile = kwargs.pop('render_tile', None)
             if render_tile is None:
                 raise Exception("GeoTrellis Layers require render_tile function.")
+
             args = (server_port,
                     data.value_reader,
                     data.layer_name,
@@ -148,7 +152,10 @@ class GeoTrellis(object):
                     data.tile_type,
                     data.avroregistry,
                     render_tile)
-            p = multiprocessing.Process(target=catalog_layer_server, args=args)
+            if isinstance(data.layer_name, list):
+                p = multiprocessing.Process(target=catalog_multilayer_server, args=args)
+            else:
+                p = multiprocessing.Process(target=catalog_layer_server, args=args)
             p.start()
             # t = threading.Thread(target=catalog_layer_server, args=args)
             # t.start()
