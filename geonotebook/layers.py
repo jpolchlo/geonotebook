@@ -209,7 +209,7 @@ class VectorLayer(GeonotebookLayer):
         elif 'colormap' in kwargs:  # a matplotlib colormap
             kwargs['colors'] = discrete_colors(kwargs['colormap'], len(data))
 
-        name = name or data.reader.name
+        name = name or data.name
         data.layer = self
         super(VectorLayer, self).__init__(name, remote, data, **kwargs)
         self.data = data
@@ -246,7 +246,6 @@ class SimpleLayer(DataLayer):
     def query_params(self):
         return self.config.vis_server.get_params(
             self.name, self.data, **self.vis_options.serialize())
-
     def __repr__(self):
         return "<{}('{}')>".format(
             self.__class__.__name__, self.name.split("_")[0])

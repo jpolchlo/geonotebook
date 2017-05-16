@@ -17,6 +17,10 @@ class VectorData(collections.Sequence):
         else:
             self.reader = path
 
+    @property
+    def name(self):
+        self.reader.name
+
     def __len__(self):
         return len(self.reader)
 
@@ -74,3 +78,34 @@ class VectorData(collections.Sequence):
                         coords[0], coords[1:],
                         layer=self.layer, **feature['properties']
                     )
+
+class GeoJsonData(object):
+
+    def __init__(self, geojson, **kwargs):
+        # the layer attribute will be set once this instance is
+        # added to a layer
+        self.layer = None
+        self._geojson = geojson
+
+    @property
+    def name(self):
+        "%s_%s" % ("GeoJSON", hash(str(self._geojson)))
+
+    def __len__(self):
+        if "features" in self._geojson:
+            return len(self._geojson["features"])
+        else:
+            return 1
+
+    def __getitem__(self, key):
+        if "features" in self._geojson:
+            if key < 0 or key >= len(self):
+                raise IndexError()
+            return self._geojson["features"][key]
+        else:
+            return self._geojson
+
+    @property
+    def geojson(self):
+        """Return an object (geojson) representation."""
+        return self._geojson

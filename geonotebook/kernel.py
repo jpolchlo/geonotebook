@@ -25,7 +25,8 @@ from .wrappers import (RddRasterData,
                        GeoTrellisCatalogLayerData,
                        RasterData,
                        RasterDataCollection,
-                       VectorData)
+                       VectorData,
+                       GeoJsonData)
 
 
 class Remote(object):
@@ -435,7 +436,7 @@ class Geonotebook(object):
             layer = TimeSeriesLayer(
                 name, self._remote, data=data, vis_url=vis_url, **kwargs
             )
-        elif isinstance(data, VectorData):
+        elif isinstance(data, VectorData) or isinstance(data, GeoJsonData):
             layer = VectorLayer(
                 name, self._remote, self.layers, data=data, **kwargs
             )
