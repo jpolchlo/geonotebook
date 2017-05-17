@@ -79,6 +79,9 @@ def catalog_layer_server(port, value_reader, layer_name, key_type, tile_type, av
                                      x,
                                      y,
                                      "")
+        if not tile:
+            abort(404)
+
         decoder = avroregistry._get_decoder(tile_type)
         encoder = avroregistry._get_encoder(tile_type)
 
@@ -105,6 +108,9 @@ def catalog_multilayer_server(port, value_reader, layer_names, key_type, tile_ty
                                           x,
                                           y,
                                           "")
+            if not value:
+                abort(404)
+
             ser = AvroSerializer(value._2(), decoder, encoder)
             tile = ser.loads(value._1())[0]['data']
             tiles.append(tile)
