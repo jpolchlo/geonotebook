@@ -2,6 +2,7 @@ import requests
 import threading
 import multiprocessing
 import time
+import logging
 
 from notebook.base.handlers import IPythonHandler
 from geonotebook.wrappers import (RddRasterData,
@@ -14,6 +15,7 @@ from .server import (rdd_server,
 
 from .render_methods import render_default_rdd
 
+logger = logging.getLogger('geotrellis-tile-server')
 # jupyterhub --no-ssl --Spawner.notebook_dir=/home/hadoop
 
 class GeoTrellisTileHandler(IPythonHandler):
@@ -24,17 +26,17 @@ class GeoTrellisTileHandler(IPythonHandler):
     # This handler uses the order x/y/z for some reason.
     def get(self, port, x, y, zoom, **kwargs):
         url = "http://localhost:%s/tile/%s/%s/%s.png" % (port, zoom, x, y)
-        print(url)
+        logger.debug("Handling %s" % (url))
         try:
             response = requests.get(url)
-            print("TILE REQUEST RETURNED WITH %s" % (response.status_code))
+            logger.debug("TILE REQUEST RETURNED WITH %s" % (response.status_code))
             if response.status_code == requests.codes.ok:
                 png = response.content
                 self.set_header('Content-Type', 'image/png')
                 self.write(png)
                 self.finish()
             else:
-                print("TILE RESPONSE IS NOT OK!: %s - %s" % (str(response), str(response.content)))
+                logger.debug("TILE RESPONSE IS NOT OK!: %s - %s" % (str(response), str(response.content)))
                 self.set_header('Content-Type', 'text/html')
                 self.set_status(404)
                 self.finish()
