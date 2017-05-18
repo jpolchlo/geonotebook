@@ -1,6 +1,7 @@
 import io
 import logging
 import numpy as np
+import os
 import rasterio
 import threading
 import sys
@@ -28,6 +29,10 @@ def make_tile_server(port, fn):
     '''
     app = Flask(__name__)
     http_server = WSGIServer(('', port), app)
+
+    f = open(os.devnull, "w")
+    # sys.stdout = f
+    sys.stderr = f
 
     def shutdown():
         time.sleep(0.5)
