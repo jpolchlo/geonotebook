@@ -246,6 +246,7 @@ class SimpleLayer(DataLayer):
     def query_params(self):
         return self.config.vis_server.get_params(
             self.name, self.data, **self.vis_options.serialize())
+
     def __repr__(self):
         return "<{}('{}')>".format(
             self.__class__.__name__, self.name.split("_")[0])
@@ -269,7 +270,8 @@ class InProcessTileLayer(DataLayer):
 
     @property
     def name(self):
-        return self._name
+        return "{}_{}".format(
+            self._name, hash(self.vis_options) + sys.maxsize + 1)
 
     @property
     def query_params(self):

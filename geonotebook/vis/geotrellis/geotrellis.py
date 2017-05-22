@@ -16,7 +16,7 @@ from .server import (rdd_server,
 from .render_methods import render_default_rdd
 
 logger = logging.getLogger('geotrellis-tile-server')
-# jupyterhub --no-ssl --Spawner.notebook_dir=/home/hadoop
+# jupyterhub --no-ssl --Spawner.notebook_dir=/home/hadoop/notebooks
 
 class GeoTrellisTileHandler(IPythonHandler):
 
