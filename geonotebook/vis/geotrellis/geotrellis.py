@@ -10,7 +10,6 @@ from geonotebook.wrappers import (RddRasterData,
                                   GeoTrellisCatalogLayerData)
 from .server import (rdd_server,
                      catalog_layer_server,
-                     catalog_multilayer_server,
                      png_layer_server)
 
 from .render_methods import render_default_rdd
@@ -131,16 +130,21 @@ class GeoTrellis(object):
 
             args = (port_coordination,
                     data.value_reader,
-                    data.layer_name,
+                    data.layer_names,
+                    data.is_multi_layer,
                     data.key_type,
                     data.tile_type,
                     data.avroregistry,
+                    data.max_zoom,
                     render_tile)
-            if isinstance(data.layer_name, list):
-                t = threading.Thread(target=catalog_multilayer_server, args=args)
-            else:
-                t = threading.Thread(target=catalog_layer_server, args=args)
-            t.start()
+            # if isinstance(data.layer_name, list):
+            #     p = multiprocessing.Process(target=catalog_multilayer_server, args=args)
+            # else:
+            #     p = multiprocessing.Process(target=catalog_layer_server, args=args)
+            p = multiprocessing.Process(target=catalog_layer_server, args=args)
+            p.start()
+            # t = threading.Thread(target=catalog_layer_server, args=args)
+            # t.start()
         else:
             raise Exception("GeoTrellis vis server cannot handle data of type %s" % (type(data)))
 
