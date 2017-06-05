@@ -35,6 +35,7 @@ const msg_types = [
   'get_protocol',
   'set_center',
   'set_zoom_range',
+  'set_max_zoom',
   'debug',
   'add_layer',
   'update_layer',
@@ -68,6 +69,7 @@ const annotation_types = {
  *   * _resize(size)
  *   * _set_center(x, y, z)
  *   * _set_zoom_range(min, max)
+ *   * _set_max_zoom(max)
  *   * _add_annotation_layer(name)
  *   * _add_osm_layer(name, url, vis, query)
  *   * _add_wms_layer(name, url, vis, query)
@@ -120,6 +122,14 @@ class MapObject {
    */
   set_zoom_range (min, max) {
     return this._set_zoom_range(min, max);
+  }
+
+  /**
+   * Set the maximum zoom level of the map.
+   * @param {number} max The max zoom level
+   */
+  set_max_zoom (max) {
+    return this._set_max_zoom(max);
   }
 
   /**

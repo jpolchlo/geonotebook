@@ -33,6 +33,11 @@ class GeoJSMap extends BaseMap {
     return [min, max];
   }
 
+  _set_max_zoom (max) {
+    this.geojsmap.zoomRange({max: max});
+    return [max];
+  }
+
   _add_annotation_layer (name) {
     var layer = this.geojsmap.createLayer('annotation', {
       annotations: ['rectangle', 'point', 'polygon']

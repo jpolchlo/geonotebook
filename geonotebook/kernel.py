@@ -184,8 +184,8 @@ class Remote(object):
 
 
 class Geonotebook(object):
-    msg_types = ['get_protocol', 'set_center', 'set_zoom_range', 'add_annotation_from_client',
-                 'get_map_state']
+    msg_types = ['get_protocol', 'set_center', 'set_zoom_range', 'set_max_zoom',
+                 'add_annotation_from_client', 'get_map_state']
 
     _protocol = None
     _remote = None
@@ -384,6 +384,20 @@ class Geonotebook(object):
 
         return self._remote.set_zoom_range(min, max)\
             .then(_set_zoom_range, self.rpc_error).catch(self.callback_error)
+
+    def set_max_zoom(self, max):
+        """Set the maximum allowable zoom level for the map.
+
+        :param max:
+        :returns:
+        :rtype:
+
+        """
+        def _set_max_zoom(result):
+            self.max_zoom = result
+
+        return self._remote.set_max_zoom(max)\
+            .then(_set_max_zoom, self.rpc_error).catch(self.callback_error)
 
     def get_map_state(self):
         """Get the state of the map.
