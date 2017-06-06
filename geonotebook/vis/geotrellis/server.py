@@ -30,7 +30,8 @@ def make_tile_server(port_coordination, fn):
     app = Flask(__name__)
     app.logger.disabled = True
     logging.getLogger('werkzeug').disabled = True
-    http_server = WSGIServer(('', port), app)
+    # http_server = WSGIServer(('', port), app)
+    http_server = None
 
     f = open(os.devnull, "w")
     # sys.stdout = f
@@ -137,18 +138,17 @@ def catalog_layer_server(port,
 
         if overzoom:
             # Figure out image crop bounds
-            dz = z - max_zoom
             dx = x - tx * math.pow(2, dz)
             dy = y - ty * math.pow(2, dz)
 
             (w, h) = image.size
 
-            tw = int(w / dz)
-            th = int(h / dz)
+            tw = int(w / math.pow(2, dz))
+            th = int(h / math.pow(2, dz))
             (x0, x1) = (tw * dx, tw * (dx + 1))
             (y0, y1) = (th * dy, th * (dy + 1))
-            image = image.crop(x0, y0, x1, y1)
-            image = image.resample((256,256))
+            image = image.crop((x0, y0, x1, y1))
+            image = image.resize((w, h))
 
         return respond_with_image(image)
 

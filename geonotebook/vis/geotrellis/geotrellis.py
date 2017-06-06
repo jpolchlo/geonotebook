@@ -137,14 +137,9 @@ class GeoTrellis(object):
                     data.avroregistry,
                     data.max_zoom,
                     render_tile)
-            # if isinstance(data.layer_name, list):
-            #     p = multiprocessing.Process(target=catalog_multilayer_server, args=args)
-            # else:
-            #     p = multiprocessing.Process(target=catalog_layer_server, args=args)
-            p = multiprocessing.Process(target=catalog_layer_server, args=args)
-            p.start()
-            # t = threading.Thread(target=catalog_layer_server, args=args)
-            # t.start()
+
+            t = threading.Thread(target=catalog_layer_server, args=args)
+            t.start()
         else:
             raise Exception("GeoTrellis vis server cannot handle data of type %s" % (type(data)))
 

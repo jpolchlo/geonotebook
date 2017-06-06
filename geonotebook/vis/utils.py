@@ -127,7 +127,7 @@ class RasterStyleOptions(object):
             tuple(tuple(c.items()) for c in self.colormap),
             self.kernel_id,
             self.zIndex,
-            self.attribution.
+            self.attribution,
             self.max_zoom))
 
 
