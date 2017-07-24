@@ -38,6 +38,8 @@ class GeonotebookLayer(object):
         self.remote = remote
         self._name = name
 
+        self._server_state = kwargs['server_state'] if 'server_state' in kwargs else { }
+
         self._system_layer = kwargs.pop("system_layer", False)
         self._expose_as = kwargs.pop("expose_as", None)
 
@@ -150,6 +152,42 @@ class NoDataLayer(GeonotebookLayer):
         self.vis_url = vis_url
 
 
+class TMSTileLayer(GeonotebookLayer):
+    """Wraps data provided by an external server.
+
+    Note that the data argument is assumed to be of type TMSRasterData.
+    """
+    def __init__(self, name, remote, data, vis_url=None, **kwargs):
+        kwargs['layer_type'] = 'external'
+
+        super(ServedTileLayer, self).__init__(
+            name, remote, data=data, vis_url=vis_url, **kwargs
+        )
+
+        self.data = data
+        self.data.bind("0.0.0.0")
+
+        vis_options = self.vis_options.serialize()
+        vis_options.update(kwargs)
+
+        if vis_url is None:
+            self.vis_url = self.config.vis_server.ingest(self.data,
+                                                         name=self.name,
+                                                         server_state=self._server_state,
+                                                         **vis_options)
+        else:
+            self.vis_url = vis_url
+
+    @property
+    def query_params(self):
+        return self.config.vis_server.get_params(
+            self.name, self.data, **self.vis_options.serialize())
+
+    def __repr__(self):
+        return "<{}('{}')[port {}]>".format(
+            self.__class__.__name__, self.data.port(), self.name)
+
+
 class DataLayer(GeonotebookLayer):
     def __init__(self, name, remote, data=None, vis_url=None, **kwargs):
 
@@ -232,7 +270,7 @@ class SimpleLayer(DataLayer):
 
         if vis_url is None:
             self.vis_url = self.config.vis_server.ingest(
-                self.data, name=self.name, \
+                self.data, name=self.name, server_state=self._server_state, \
                 **self.vis_options.serialize())
         else:
             self.vis_url = vis_url
@@ -251,38 +289,6 @@ class SimpleLayer(DataLayer):
         return "<{}('{}')>".format(
             self.__class__.__name__, self.name.split("_")[0])
 
-class InProcessTileLayer(DataLayer):
-    def __init__(self, name, remote, data, inproc_server_states, vis_url=None, **kwargs):
-        super(InProcessTileLayer, self).__init__(
-            name, remote, data=data, vis_url=vis_url, **kwargs
-        )
-
-        vis_options = self.vis_options.serialize()
-        vis_options.update(kwargs)
-
-        if vis_url is None:
-            self.vis_url = self.config.vis_server.ingest(self.data,
-                                                         name=self.name,
-                                                         inproc_server_states=inproc_server_states,
-                                                         **vis_options)
-        else:
-            self.vis_url = vis_url
-
-    @property
-    def name(self):
-        return "{}_{}".format(
-            self._name, hash(self.vis_options) + sys.maxsize + 1)
-
-    @property
-    def query_params(self):
-        return self.config.vis_server.get_params(
-            self.name, self.data, **self.vis_options.serialize())
-
-    def __repr__(self):
-        return "<{}('{}')>".format(
-            self.__class__.__name__, self.name)
-
-
 class TimeSeriesLayer(DataLayer):
     def __init__(self, name, remote, data, vis_url=None, **kwargs):
         super(TimeSeriesLayer, self).__init__(
@@ -295,7 +301,7 @@ class TimeSeriesLayer(DataLayer):
 
         if vis_url is None:
             self._vis_urls[0] = self.config.vis_server.ingest(
-                self.current, name=self.name, **self.vis_options.serialize())
+                self.current, name=self.name, server_state=self._server_state, **self.vis_options.serialize())
 
     def __repr__(self):
         return "<{}('{}')>".format(
@@ -336,7 +342,7 @@ class TimeSeriesLayer(DataLayer):
 
         if self._vis_urls[value] is None:
             self._vis_urls[value] = self.config.vis_server.ingest(
-                self.current, name=self.name, **self.vis_options.serialize())
+                self.current, name=self.name, server_state=self._server_state, **self.vis_options.serialize())
 
     def _replace_layer(self, idx):
         prev_name = self.name
@@ -412,9 +418,12 @@ class GeonotebookLayerCollection(object):
 
     def remove(self, value):
         if isinstance(value, six.string_types):
+            to_return = self._layers[value]
             del self._layers[value]
         elif isinstance(value, GeonotebookLayer):
+            to_return = self._layers[value.name]
             del self._layers[value.name]
+        return to_return
 
     def find(self, predicate):
         """Find first GeonotebookLayer that matches predicate.

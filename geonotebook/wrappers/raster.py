@@ -9,6 +9,13 @@ import pkg_resources as pr
 from shapely.geometry import Polygon
 
 class TMSRasterData(object):
+    """
+    A wrapper for a TMS server.
+
+    The underlying TMS server must carry the 'port', 'host', and 'url_pattern'
+    properties as well as the 'bind' and 'unbind' methods.  The bind method will
+    assign a random port at the specified host if the 'port' argument is unset.
+    """
     def __init__(self, tms, name=None):
         self.tms = tms
 
@@ -16,29 +23,24 @@ class TMSRasterData(object):
             self.name = str(hash(tms))
         else:
             self.name = name
+        self._url = None
 
-class GeoTrellisCatalogLayerData(object):
+    def bind(self, host, port=None):
+        self.tms.bind(host, port)
+        self._url = self.tms.url_pattern
 
-    def __init__(self,
-                 geopysc,
-                 catalog_uri,
-                 layer_name,
-                 key_type = None,
-                 tile_type = None,
-                 options = None,):
-        from geopyspark.geotrellis.catalog import _construct_catalog, _mapped_cached
-        from geopyspark.geotrellis.constants import SPATIAL, TILE
+    def unbind(self):
+        self.tms.unbind()
+        self._url = None
 
-        if not key_type:
-            rdd_type = SPAITAL
-        if not tile_type:
-            tile_type = TILE
-        _construct_catalog(geopysc, catalog_uri, options)
-        catalog = _mapped_cached[catalog_uri]
-        self.catalog_uri = catalog_uri
-        self.value_reader = catalog.value_reader
-        self.layer_name = layer_name
-        self.key_type =  geopysc.map_key_input(key_type, True)
+    def host(self):
+        return self.tms.host
+
+    def port(self):
+        return self.tms.port
+
+    def url_pattern(self):
+        return self._url
 
 class RasterData(collections.Sequence):
     _default_schema = 'file'

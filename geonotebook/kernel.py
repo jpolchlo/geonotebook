@@ -21,8 +21,7 @@ from .layers import (AnnotationLayer,
                      VectorLayer)
 
 from .utils import get_kernel_id
-from .wrappers import (GeoTrellisCatalogLayerData,
-                       RasterData,
+from .wrappers import (RasterData,
                        TMSRasterData,
                        RasterDataCollection,
                        VectorData,
@@ -318,8 +317,7 @@ class Geonotebook(object):
         self.servers = { } # Dictionary servers.
 
         self._kernel = kernel
-
-        self._inproc_server_states = { }
+        self._server_state = { }
 
     @property
     def kernel_id(self):
@@ -392,35 +390,26 @@ class Geonotebook(object):
         :rtype:
         """
         # Make sure we pass in kernel_id to the layer,  then to the vis_server
-        # Otherwise we cant generate the coorect vis_url.
+        # Otherwise we cant generate the correct vis_url.
 
         layer_type = kwargs.get('layer_type', None)
 
         kwargs['kernel_id'] = self.kernel_id
+        kwargs['server_state'] = self._server_state
 
-        if layer_type != 'annotation':
+        if layer_type != 'annotation' and layer_type != 'external':
             kwargs['zIndex'] = len(self.layers)
 
         # HACK:  figure out a way to do this without so many conditionals
-        if isinstance(data, GeoTrellisCatalogLayerData):
-            name = "%s__%s" % (hash(data.catalog_uri), data.layer_name)
+        if isinstance(data, TMSRasterData):
+            name = name or data.name
 
-            layer = InProcessTileLayer(name,
-                                       self._remote,
-                                       data=data,
-                                       inproc_server_states=self._inproc_server_states,
-                                       vis_url=vis_url,
-                                       **kwargs)
-
-        elif isinstance(data, TMSRasterData):
-            name = data.name
-
-            layer = InProcessTileLayer(name,
-                                       self._remote,
-                                       data=data,
-                                       inproc_server_states=self._inproc_server_states,
-                                       vis_url=vis_url,
-                                       **kwargs)
+            layer = TMSTileLayer(name,
+                                 self._remote,
+                                 data=data,
+                                 vis_url=vis_url,
+                                 server_state=self._server_state,
+                                 **kwargs)
 
         elif isinstance(data, RasterData):
             # TODO verify layer exists in geoserver?
@@ -471,7 +460,7 @@ class Geonotebook(object):
         def _remove_layer(_layer_name):
             vis_server = Config().vis_server
             if "disgorge" in dir(vis_server):
-                vis_server.disgorge(layer_name, inproc_server_states=self._inproc_server_states)
+                vis_server.disgorge(layer_name, server_state=self._server_state)
             self.layers.remove(layer_name)
 
         cb = self._remote.remove_layer(layer_name).then(

@@ -167,50 +167,70 @@ class Ktile(object):
             raise Exception(
                 "KTile vis server requires kernel_id as kwarg to ingest!")
 
+        # Allows ingest operation to persist some information across calls to ingest
+        server_state = kwargs.pop('server_state', {})
+
         options = {
             'name': data.name if name is None else name
         }
 
         options.update(kwargs)
 
-        # Note:
-        # Check if the reader has defined a vrt_path
-        #
-        # This is mostly intended for the VRTReader so that it can communicate
-        # that the VRT for reading data is also the VRT that should be used for
-        # visualisation. Otherwise we wouild have to explicitly add a vrt_path
-        # kwarg to the add_layer() call.
-        #
-        # A /different/ VRT can still be used for visualisation by passing
-        # a path via vrt_path to add_layer.
-        #
-        # Finally, A dynamic VRT will ALWAYS be generated if vrt_path is
-        # explicitly set to None via add_layer.
-        if hasattr(data.reader, 'vrt_path'):
-            if 'vrt_path' in kwargs and kwargs['vrt_path'] is None:
-                # Explicitly set to None
-                pass
-            else:
-                kwargs['vrt_path'] = data.reader.vrt_path
-
-        # If we have a static VRT
-        if 'vrt_path' in kwargs and kwargs['vrt_path'] is not None:
-            options.update(self._static_vrt_options(data, kwargs))
-        else:
-            # We don't have a static VRT, set options for a dynamic VRT
-            options.update(self._dynamic_vrt_options(data, kwargs))
-
         # Make the Request
-        base_url = '{}/{}/{}'.format(self.base_url, kernel_id, name)
+        base_url = '{}/{}/{}'.format(self.base_url, kernel_id, options['name'])
 
-        r = requests.post(base_url, json={
-            "provider": {
-                "class": "geonotebook.vis.ktile.provider:MapnikPythonProvider",
-                "kwargs": options
-            }
-            # NB: Other KTile layer options could go here
-            #     See: http://tilestache.org/doc/#layers
-        })
+        if hasattr(data, "url_pattern"):
+            url_pattern = data.url_pattern()
+
+            r = requests.post(base_url, json={
+                "provider": {
+                    "name": "proxy",
+                    "url": url_pattern
+                }
+            })
+
+            if 'TMS servers' not in server_state:
+                server_state['TMS servers'] = { }
+
+            server_state['TMS servers'][name] = data
+        elif (hasattr(data, 'reader')):
+            # Note:
+            # Check if the reader has defined a vrt_path
+            #
+            # This is mostly intended for the VRTReader so that it can communicate
+            # that the VRT for reading data is also the VRT that should be used for
+            # visualisation. Otherwise we wouild have to explicitly add a vrt_path
+            # kwarg to the add_layer() call.
+            #
+            # A /different/ VRT can still be used for visualisation by passing
+            # a path via vrt_path to add_layer.
+            #
+            # Finally, A dynamic VRT will ALWAYS be generated if vrt_path is
+            # explicitly set to None via add_layer.
+            if hasattr(data.reader, 'vrt_path'):
+                if 'vrt_path' in kwargs and kwargs['vrt_path'] is None:
+                    # Explicitly set to None
+                    pass
+                else:
+                    kwargs['vrt_path'] = data.reader.vrt_path
+
+            # If we have a static VRT
+            if 'vrt_path' in kwargs and kwargs['vrt_path'] is not None:
+                options.update(self._static_vrt_options(data, kwargs))
+            else:
+                # We don't have a static VRT, set options for a dynamic VRT
+                options.update(self._dynamic_vrt_options(data, kwargs))
+
+            r = requests.post(base_url, json={
+                "provider": {
+                    "class": "geonotebook.vis.ktile.provider:MapnikPythonProvider",
+                    "kwargs": options
+                }
+                # NB: Other KTile layer options could go here
+                #     See: http://tilestache.org/doc/#layers
+            })
+        else:
+          raise ValueError("Don't know how to ingest specified data")
 
         if r.status_code == 200:
             return base_url
@@ -218,3 +238,10 @@ class Ktile(object):
             raise RuntimeError(
                 "KTile.ingest() returned {} error:\n\n{}".format(
                     r.status_code, ''.join(r.json()['error'])))
+
+def disgorge(self, name, **kwargs):
+    server_state = kwargs.pop('server_state', {})
+    if 'TMS servers' in server_state:
+        tms = server_state.pop(name, None)
+        if tms and 'unbind' in dir(tms):
+            tms.unbind()

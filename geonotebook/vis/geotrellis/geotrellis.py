@@ -11,8 +11,7 @@ from tornado import gen
 
 from datetime import datetime
 from notebook.base.handlers import IPythonHandler
-from geonotebook.wrappers.raster import (TMSRasterData,
-                                         GeoTrellisCatalogLayerData)
+from geonotebook.wrappers.raster import TMSRasterData
 from .server import (rdd_server,
                      catalog_layer_server,
                      catalog_multilayer_server)
@@ -128,21 +127,21 @@ class GeoTrellis(object):
             inproc_server_states['geotrellis']['server'][name] = server
             print('Added TMS server at host {}'.format(server.host()))
             print('Added TMS server at port {}'.format(server.port()))
-        elif isinstance(data, GeoTrellisCatalogLayerData):
-            render_tile = kwargs.pop('render_tile', None)
-            if render_tile is None:
-                raise Exception("GeoTrellis Layers require render_tile function.")
+        # elif isinstance(data, GeoTrellisCatalogLayerData):
+        #     render_tile = kwargs.pop('render_tile', None)
+        #     if render_tile is None:
+        #         raise Exception("GeoTrellis Layers require render_tile function.")
 
-            args = (port_coordination,
-                    data.value_reader,
-                    data.layer_name,
-                    data.key_type,
-                    render_tile)
-            if isinstance(data.layer_name, list):
-                t = threading.Thread(target=catalog_multilayer_server, args=args)
-            else:
-                t = threading.Thread(target=catalog_layer_server, args=args)
-            t.start()
+        #     args = (port_coordination,
+        #             data.value_reader,
+        #             data.layer_name,
+        #             data.key_type,
+        #             render_tile)
+        #     if isinstance(data.layer_name, list):
+        #         t = threading.Thread(target=catalog_multilayer_server, args=args)
+        #     else:
+        #         t = threading.Thread(target=catalog_layer_server, args=args)
+        #     t.start()
         else:
             raise Exception("GeoTrellis vis server cannot handle data of type %s" % (type(data)))
 
