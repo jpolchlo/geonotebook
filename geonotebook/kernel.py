@@ -408,7 +408,6 @@ class Geonotebook(object):
                                  self._remote,
                                  data=data,
                                  vis_url=vis_url,
-                                 server_state=self._server_state,
                                  **kwargs)
 
         elif isinstance(data, RasterData):
