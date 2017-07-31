@@ -16,7 +16,7 @@ from .layers import (AnnotationLayer,
                      GeonotebookLayerCollection,
                      NoDataLayer,
                      SimpleLayer,
-                     InProcessTileLayer,
+                     TMSTileLayer,
                      TimeSeriesLayer,
                      VectorLayer)
 
