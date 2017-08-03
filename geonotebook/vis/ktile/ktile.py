@@ -167,7 +167,7 @@ class Ktile(object):
             raise Exception(
                 "KTile vis server requires kernel_id as kwarg to ingest!")
 
-        # Allows ingest operation to persist some information across calls to ingest
+        # Allows ingest operation to persist some information across calls to ingest/disgorge
         server_state = kwargs.pop('server_state', {})
 
         options = {
@@ -180,7 +180,7 @@ class Ktile(object):
         base_url = '{}/{}/{}'.format(self.base_url, kernel_id, options['name'])
 
         if hasattr(data, "url_pattern"):
-            url_pattern = data.url_pattern()
+            url_pattern = data.url_pattern().replace('{x}', '{X}').replace('{y}', '{Y}').replace('{z}', '{Z}')
 
             r = requests.post(base_url, json={
                 "provider": {
@@ -236,12 +236,12 @@ class Ktile(object):
             return base_url
         else:
             raise RuntimeError(
-                "KTile.ingest() returned {} error:\n\n{}".format(
-                    r.status_code, ''.join(r.json()['error'])))
+                "KTile.ingest() returned error {}:\n\n{}".format(
+                    r.status_code, r))
 
-def disgorge(self, name, **kwargs):
-    server_state = kwargs.pop('server_state', {})
-    if 'TMS servers' in server_state:
-        tms = server_state.pop(name, None)
-        if tms and 'unbind' in dir(tms):
-            tms.unbind()
+    def disgorge(self, name, **kwargs):
+        server_state = kwargs.pop('server_state', {})
+        if 'TMS servers' in server_state:
+            tms = server_state['TMS servers'].pop(name, None)
+            if tms and 'unbind' in dir(tms):
+                tms.unbind()

@@ -160,7 +160,7 @@ class TMSTileLayer(GeonotebookLayer):
     def __init__(self, name, remote, data, vis_url=None, **kwargs):
         kwargs['layer_type'] = 'external'
 
-        super(ServedTileLayer, self).__init__(
+        super(TMSTileLayer, self).__init__(
             name, remote, data=data, vis_url=vis_url, **kwargs
         )
 
@@ -173,7 +173,6 @@ class TMSTileLayer(GeonotebookLayer):
         if vis_url is None:
             self.vis_url = self.config.vis_server.ingest(self.data,
                                                          name=self.name,
-                                                         server_state=self._server_state,
                                                          **vis_options)
         else:
             self.vis_url = vis_url
