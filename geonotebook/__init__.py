@@ -5,7 +5,6 @@ import pkg_resources
 
 from .config import Config
 
-
 def _jupyter_server_extension_paths():
     return [{
         "module": "geonotebook"
@@ -66,7 +65,7 @@ def load_jupyter_server_extension(nbapp):
     webapp = nbapp.web_app
     conf = Config()
 
-    conf.vis_server.initialize_webapp(conf, webapp)
+    conf.vis_server.initialize_webapp(conf, webapp, log=nbapp.log, port=nbapp.port)
 
     base_url = webapp.settings['base_url']
 

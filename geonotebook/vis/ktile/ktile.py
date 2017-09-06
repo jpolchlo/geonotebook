@@ -4,6 +4,11 @@ import os
 
 from notebook.utils import url_path_join as ujoin
 
+import zmq
+from zmq.eventloop import zmqstream
+from tornado.ioloop import IOLoop
+import pickle
+
 import requests
 
 import TileStache as ts
@@ -22,9 +27,10 @@ from .handler import (KtileHandler,
 # it manages the configuration for all running geonotebook
 # kernels. It lives inside the Tornado Webserver
 class KtileConfigManager(MutableMapping):
-    def __init__(self, default_cache, *args, **kwargs):
+    def __init__(self, default_cache, log=None):
         self.default_cache = default_cache
         self._configs = {}
+        self.log = log
 
     def __getitem__(self, *args, **kwargs):
         return self._configs.__getitem__(*args, **kwargs)
@@ -87,22 +93,109 @@ class Ktile(object):
     def default_cache(self):
         return dict(self.config.items(self.default_cache_section))
 
+    def webapp_comm(self, msg):
+        ctx = zmq.Context()
+        s = ctx.socket(zmq.REQ)
+        s.connect("tcp://127.0.0.1:14253")
+        s.send(pickle.dumps(msg))
+        resp = pickle.loads(s.recv())
+        s.close()
+        return resp
+
     def start_kernel(self, kernel):
         kernel_id = get_kernel_id(kernel)
-        requests.post("{}/{}".format(self.base_url, kernel_id))
+        msg = { 'action': 'register_kernel',
+                'kernel_id': kernel_id
+              }
+        resp = self.webapp_comm(msg)
+
+        if resp['success'] == True:
+            kernel.log.info("Successfully registered kernel {}".format(kernel_id))
+        else:
+            raise RuntimeError("Unknown error during kernel registration" if 'err_msg' not in resp else resp['err_msg'])
+
+        # requests.post("{}/{}".format(self.base_url, kernel_id))
         # Error checking on response!
 
     def shutdown_kernel(self, kernel):
         kernel_id = get_kernel_id(kernel)
-        requests.delete("{}/{}".format(self.base_url, kernel_id))
+        resp = self.webapp_comm({
+            'action': 'delete_kernel',
+            'kernel_id': kernel_id
+        })
+
+        if resp['success'] == True:
+            kernel.log.info("Successfully deleted kernel {}".format(kernel_id))
+        else:
+            raise RuntimeError("Unknown error during kernel delete" if 'err_msg' not in resp else resp['err_msg'])
+
+        #requests.delete("{}/{}".format(self.base_url, kernel_id))
 
     # This function is caleld inside the tornado web app
     # from jupyter_load_server_extensions
-    def initialize_webapp(self, config, webapp):
+    def initialize_webapp(self, config, webapp, log=None, port=None):
         base_url = webapp.settings['base_url']
 
         webapp.ktile_config_manager = KtileConfigManager(
-            self.default_cache)
+            self.default_cache,
+            log=log
+        )
+
+        io_loop = IOLoop.current()
+        ctx = zmq.Context()
+        socket = ctx.socket(zmq.REP)
+        socket.bind("tcp://*:%s" % 14253)
+        stream = zmqstream.ZMQStream(socket, io_loop)
+
+        def _recv(msg):
+            data = pickle.loads(msg[0])
+            log.info("ZMQ socket received data={}".format(data))
+
+            action = data['action']
+
+            if action == "register_kernel":
+                kernel_id = data['kernel_id']
+                kwargs = {} if 'json' not in data else data['json']
+                try:
+                    webapp.ktile_config_manager.add_config(kernel_id, **kwargs)
+                    result = { 'success': True }
+                except Exception as exc:
+                    result = { 'success': False,
+                               'err_msg': exc
+                               }
+            elif action == "delete_kernel":
+                kernel_id = data['kernel_id']
+                try:
+                    del webapp.ktile_config_manager[kernel_id]
+                    result = { 'success': True }
+                except KeyError:
+                    result = { 'success': False,
+                               'err_msg': u'Kernel %s not found' % kernel_id
+                             }
+            elif action == "add_layer":
+                try:
+                    kernel_id = data['kernel_id']
+                    layer_name = data['layer_name']
+                    webapp.ktile_config_manager.add_layer(kernel_id, layer_name, data['json'])
+                    result = { 'success': True }
+                except Exception:
+                    import sys
+                    import traceback
+                    t, v, tb = sys.exc_info()
+                    result = { 'success': False,
+                               'err_msg': traceback.format_exception(t, v, tb)
+                             }
+            elif action == "request_port":
+                result = { 'port': port }
+            else:
+                result = {'success': False,
+                          'err_msg': 'Unrecognized request: {}'.format(action)
+                         }
+
+            log.info("Sending response: {}".format(result))
+            stream.send(pickle.dumps(result))
+
+        stream.on_recv(_recv)
 
         webapp.add_handlers('.*$', [
             # kernel_name
@@ -201,20 +294,40 @@ class Ktile(object):
             options.update(self._dynamic_vrt_options(data, kwargs))
 
         # Make the Request
-        base_url = '{}/{}/{}'.format(self.base_url, kernel_id, name)
+        port_request = self.webapp_comm({ 'action': 'request_port' })
+        base_url = 'http://127.0.0.1:{}/ktile/{}/{}'.format(port_request['port'], kernel_id, name)
 
-        r = requests.post(base_url, json={
-            "provider": {
-                "class": "geonotebook.vis.ktile.provider:MapnikPythonProvider",
-                "kwargs": options
+        resp = self.webapp_comm({
+            'action': 'add_layer',
+            'kernel_id': kernel_id,
+            'layer_name': name,
+            'json': {
+                "provider": {
+                    "class": "geonotebook.vis.ktile.provider:MapnikPythonProvider",
+                    "kwargs": options
+                }
+                # NB: Other KTile layer options could go here
+                #     See: http://tilestache.org/doc/#layers
             }
-            # NB: Other KTile layer options could go here
-            #     See: http://tilestache.org/doc/#layers
         })
 
-        if r.status_code == 200:
-            return base_url
-        else:
-            raise RuntimeError(
-                "KTile.ingest() returned {} error:\n\n{}".format(
-                    r.status_code, ''.join(r.json()['error'])))
+        if not resp['success']:
+            raise RuntimeError("KTile.ingest() failed with error:\n\n{}".format(resp['err_msg']))
+
+        return base_url
+
+        # r = requests.post(base_url, json={
+        #     "provider": {
+        #         "class": "geonotebook.vis.ktile.provider:MapnikPythonProvider",
+        #         "kwargs": options
+        #     }
+        #     # NB: Other KTile layer options could go here
+        #     #     See: http://tilestache.org/doc/#layers
+        # })
+
+        # if r.status_code == 200:
+        #     return base_url
+        # else:
+        #     raise RuntimeError(
+        #         "KTile.ingest() returned {} error:\n\n{}".format(
+        #             r.status_code, ''.join(r.json()['error'])))
