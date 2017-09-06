@@ -84,9 +84,8 @@ class KtileConfigManager(MutableMapping):
 # different contexts!
 
 class Ktile(object):
-    def __init__(self, config, url=None, default_cache=None):
+    def __init__(self, config, default_cache=None):
         self.config = config
-        self.base_url = url
         self.default_cache_section = default_cache
 
     @property
@@ -114,9 +113,6 @@ class Ktile(object):
         else:
             raise RuntimeError("Unknown error during kernel registration" if 'err_msg' not in resp else resp['err_msg'])
 
-        # requests.post("{}/{}".format(self.base_url, kernel_id))
-        # Error checking on response!
-
     def shutdown_kernel(self, kernel):
         kernel_id = get_kernel_id(kernel)
         resp = self.webapp_comm({
@@ -129,9 +125,7 @@ class Ktile(object):
         else:
             raise RuntimeError("Unknown error during kernel delete" if 'err_msg' not in resp else resp['err_msg'])
 
-        #requests.delete("{}/{}".format(self.base_url, kernel_id))
-
-    # This function is caleld inside the tornado web app
+    # This function is called inside the tornado web app
     # from jupyter_load_server_extensions
     def initialize_webapp(self, config, webapp, log=None, port=None):
         base_url = webapp.settings['base_url']
@@ -315,19 +309,3 @@ class Ktile(object):
             raise RuntimeError("KTile.ingest() failed with error:\n\n{}".format(resp['err_msg']))
 
         return base_url
-
-        # r = requests.post(base_url, json={
-        #     "provider": {
-        #         "class": "geonotebook.vis.ktile.provider:MapnikPythonProvider",
-        #         "kwargs": options
-        #     }
-        #     # NB: Other KTile layer options could go here
-        #     #     See: http://tilestache.org/doc/#layers
-        # })
-
-        # if r.status_code == 200:
-        #     return base_url
-        # else:
-        #     raise RuntimeError(
-        #         "KTile.ingest() returned {} error:\n\n{}".format(
-        #             r.status_code, ''.join(r.json()['error'])))
