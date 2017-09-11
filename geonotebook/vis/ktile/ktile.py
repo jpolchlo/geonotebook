@@ -95,7 +95,8 @@ class Ktile(object):
     def webapp_comm(self, msg):
         ctx = zmq.Context()
         s = ctx.socket(zmq.REQ)
-        s.connect("tcp://127.0.0.1:14253")
+        # s.connect("tcp://127.0.0.1:14253")
+        s.connect("ipc:///tmp/{}".format(os.environ['USER']))
         s.send(pickle.dumps(msg))
         resp = pickle.loads(s.recv())
         s.close()
@@ -138,7 +139,15 @@ class Ktile(object):
         io_loop = IOLoop.current()
         ctx = zmq.Context()
         socket = ctx.socket(zmq.REP)
-        socket.bind("tcp://*:%s" % 14253)
+        # socket.bind("tcp://*:%s" % 14253)
+
+        user = os.environ['USER']
+        log.info("Opening connection at ipc:///tmp/{}".format(user))
+        try:
+            os.remove("/tmp/{}".format(user))
+        except OSError:
+            pass
+        socket.bind("ipc:///tmp/{}".format(user))
         stream = zmqstream.ZMQStream(socket, io_loop)
 
         def _recv(msg):
@@ -191,6 +200,7 @@ class Ktile(object):
 
         stream.on_recv(_recv)
 
+        log.info("Completed webapp registration for user {}".format(user))
         webapp.add_handlers('.*$', [
             # kernel_name
             (ujoin(base_url, r'/ktile/([^/]*)'),
