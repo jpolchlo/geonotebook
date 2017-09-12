@@ -78,9 +78,8 @@ class KtileConfigManager(MutableMapping):
 # different contexts!
 
 class Ktile(object):
-    def __init__(self, config, url=None, default_cache=None):
+    def __init__(self, config, default_cache=None, **kwargs):
         self.config = config
-        self.base_url = url
         self.default_cache_section = default_cache
 
     @property
@@ -89,17 +88,28 @@ class Ktile(object):
 
     def start_kernel(self, kernel):
         kernel_id = get_kernel_id(kernel)
-        requests.post("{}/{}".format(self.base_url, kernel_id))
+
+        with open('/tmp/{}'.format(os.environ['USER'])) as f:
+            port = f.read()
+
+        requests.post("http://127.0.0.1:{}/ktile/{}".format(port, kernel_id))
         # Error checking on response!
 
     def shutdown_kernel(self, kernel):
         kernel_id = get_kernel_id(kernel)
-        requests.delete("{}/{}".format(self.base_url, kernel_id))
+        with open('/tmp/{}'.format(os.environ['USER'])) as f:
+            port = f.read()
+
+        requests.delete("http://127.0.0.1:{}/ktile/{}".format(port, kernel_id))
 
     # This function is caleld inside the tornado web app
     # from jupyter_load_server_extensions
-    def initialize_webapp(self, config, webapp):
+    def initialize_webapp(self, config, webapp, port):
         base_url = webapp.settings['base_url']
+
+        user = os.environ['USER']
+        with open('/tmp/{}'.format(user), 'w') as f:
+            f.write('{}'.format(port))
 
         webapp.ktile_config_manager = KtileConfigManager(
             self.default_cache)
@@ -201,7 +211,10 @@ class Ktile(object):
             options.update(self._dynamic_vrt_options(data, kwargs))
 
         # Make the Request
-        base_url = '{}/{}/{}'.format(self.base_url, kernel_id, name)
+        with open('/tmp/{}'.format(os.environ['USER'])) as f:
+            port = f.read()
+
+        base_url = 'http://127.0.0.1:{}/ktile/{}/{}'.format(port, kernel_id, name)
 
         r = requests.post(base_url, json={
             "provider": {
