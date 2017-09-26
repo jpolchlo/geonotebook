@@ -1,6 +1,7 @@
 from collections import MutableMapping
 
 import os
+import tempfile
 
 from notebook.utils import url_path_join as ujoin
 
@@ -92,11 +93,14 @@ class Ktile(object):
     def default_cache(self):
         return dict(self.config.items(self.default_cache_section))
 
-    def webapp_comm(self, msg):
+    def webapp_comm_send(self, msg):
         ctx = zmq.Context()
         s = ctx.socket(zmq.REQ)
-        # s.connect("tcp://127.0.0.1:14253")
-        s.connect("ipc:///tmp/{}".format(os.environ['USER']))
+
+        with open("{}/{}".format(tempfile.gettempdir(), os.environ['USER']), 'r') as f:
+            comm_port = int(f.read())
+        
+        s.connect("tcp://127.0.0.1:{}".format(comm_port))
         s.send(pickle.dumps(msg))
         resp = pickle.loads(s.recv())
         s.close()
@@ -107,7 +111,7 @@ class Ktile(object):
         msg = { 'action': 'register_kernel',
                 'kernel_id': kernel_id
               }
-        resp = self.webapp_comm(msg)
+        resp = self.webapp_comm_send(msg)
 
         if resp['success'] == True:
             kernel.log.info("Successfully registered kernel {}".format(kernel_id))
@@ -116,7 +120,7 @@ class Ktile(object):
 
     def shutdown_kernel(self, kernel):
         kernel_id = get_kernel_id(kernel)
-        resp = self.webapp_comm({
+        resp = self.webapp_comm_send({
             'action': 'delete_kernel',
             'kernel_id': kernel_id
         })
@@ -139,15 +143,14 @@ class Ktile(object):
         io_loop = IOLoop.current()
         ctx = zmq.Context()
         socket = ctx.socket(zmq.REP)
-        # socket.bind("tcp://*:%s" % 14253)
+        selected_port = socket.bind_to_random_port("tcp://*", min_port=49152, max_port=65535, max_tries=100)
 
         user = os.environ['USER']
-        log.info("Opening connection at ipc:///tmp/{}".format(user))
-        try:
-            os.remove("/tmp/{}".format(user))
-        except OSError:
-            pass
-        socket.bind("ipc:///tmp/{}".format(user))
+        log.info("Opening connection on port {}".format(selected_port))
+
+        with open("{}/{}".format(tempfile.gettempdir(), user), 'w') as f:
+            f.write("{}".format(selected_port))
+
         stream = zmqstream.ZMQStream(socket, io_loop)
 
         def _recv(msg):
@@ -298,10 +301,10 @@ class Ktile(object):
             options.update(self._dynamic_vrt_options(data, kwargs))
 
         # Make the Request
-        port_request = self.webapp_comm({ 'action': 'request_port' })
+        port_request = self.webapp_comm_send({ 'action': 'request_port' })
         base_url = 'http://127.0.0.1:{}/ktile/{}/{}'.format(port_request['port'], kernel_id, name)
 
-        resp = self.webapp_comm({
+        resp = self.webapp_comm_send({
             'action': 'add_layer',
             'kernel_id': kernel_id,
             'layer_name': name,
