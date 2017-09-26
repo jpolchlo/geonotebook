@@ -17,6 +17,7 @@ import TileStache as ts
 from TileStache.Config import _parseConfigLayer as parseConfigLayer
 
 from geonotebook.utils import get_kernel_id
+from geonotebook.vis.comm_protocol import *
 
 from .handler import (KtileHandler,
                       KtileLayerHandler,
@@ -93,25 +94,12 @@ class Ktile(object):
     def default_cache(self):
         return dict(self.config.items(self.default_cache_section))
 
-    def webapp_comm_send(self, msg):
-        ctx = zmq.Context()
-        s = ctx.socket(zmq.REQ)
-
-        with open("{}/{}".format(tempfile.gettempdir(), os.environ['USER']), 'r') as f:
-            comm_port = int(f.read())
-        
-        s.connect("tcp://127.0.0.1:{}".format(comm_port))
-        s.send(pickle.dumps(msg))
-        resp = pickle.loads(s.recv())
-        s.close()
-        return resp
-
     def start_kernel(self, kernel):
         kernel_id = get_kernel_id(kernel)
         msg = { 'action': 'register_kernel',
                 'kernel_id': kernel_id
               }
-        resp = self.webapp_comm_send(msg)
+        resp = webapp_comm_send(msg)
 
         if resp['success'] == True:
             kernel.log.info("Successfully registered kernel {}".format(kernel_id))
@@ -120,7 +108,7 @@ class Ktile(object):
 
     def shutdown_kernel(self, kernel):
         kernel_id = get_kernel_id(kernel)
-        resp = self.webapp_comm_send({
+        resp = webapp_comm_send({
             'action': 'delete_kernel',
             'kernel_id': kernel_id
         })
@@ -132,7 +120,11 @@ class Ktile(object):
 
     # This function is called inside the tornado web app
     # from jupyter_load_server_extensions
-    def initialize_webapp(self, config, webapp, log=None, port=None):
+    def initialize_webapp(self, config, nbapp):
+        webapp = nbapp.web_app
+        log = nbapp.log
+        port = nbapp.port
+
         base_url = webapp.settings['base_url']
 
         webapp.ktile_config_manager = KtileConfigManager(
@@ -146,64 +138,13 @@ class Ktile(object):
         selected_port = socket.bind_to_random_port("tcp://*", min_port=49152, max_port=65535, max_tries=100)
 
         user = os.environ['USER']
-        log.info("Opening connection on port {}".format(selected_port))
-
+        log.info("Webapp communication channel opened on port {} for user {}".format(selected_port, user))
         with open("{}/{}".format(tempfile.gettempdir(), user), 'w') as f:
-            f.write("{}".format(selected_port))
+            f.write(str(selected_port))
 
         stream = zmqstream.ZMQStream(socket, io_loop)
+        stream.on_recv(make_callback(stream, WebAppProtocol(nbapp)))
 
-        def _recv(msg):
-            data = pickle.loads(msg[0])
-            log.info("ZMQ socket received data={}".format(data))
-
-            action = data['action']
-
-            if action == "register_kernel":
-                kernel_id = data['kernel_id']
-                kwargs = {} if 'json' not in data else data['json']
-                try:
-                    webapp.ktile_config_manager.add_config(kernel_id, **kwargs)
-                    result = { 'success': True }
-                except Exception as exc:
-                    result = { 'success': False,
-                               'err_msg': exc
-                               }
-            elif action == "delete_kernel":
-                kernel_id = data['kernel_id']
-                try:
-                    del webapp.ktile_config_manager[kernel_id]
-                    result = { 'success': True }
-                except KeyError:
-                    result = { 'success': False,
-                               'err_msg': u'Kernel %s not found' % kernel_id
-                             }
-            elif action == "add_layer":
-                try:
-                    kernel_id = data['kernel_id']
-                    layer_name = data['layer_name']
-                    webapp.ktile_config_manager.add_layer(kernel_id, layer_name, data['json'])
-                    result = { 'success': True }
-                except Exception:
-                    import sys
-                    import traceback
-                    t, v, tb = sys.exc_info()
-                    result = { 'success': False,
-                               'err_msg': traceback.format_exception(t, v, tb)
-                             }
-            elif action == "request_port":
-                result = { 'port': port }
-            else:
-                result = {'success': False,
-                          'err_msg': 'Unrecognized request: {}'.format(action)
-                         }
-
-            log.info("Sending response: {}".format(result))
-            stream.send(pickle.dumps(result))
-
-        stream.on_recv(_recv)
-
-        log.info("Completed webapp registration for user {}".format(user))
         webapp.add_handlers('.*$', [
             # kernel_name
             (ujoin(base_url, r'/ktile/([^/]*)'),
@@ -222,6 +163,7 @@ class Ktile(object):
              dict(ktile_config_manager=webapp.ktile_config_manager)),
 
         ])
+        log.info("Completed webapp registration for user {}".format(user))
 
     # get_params should take a generic list of parameters e.g. 'bands',
     # 'range', 'gamma' and convert these into a list of vis_server specific
@@ -301,10 +243,10 @@ class Ktile(object):
             options.update(self._dynamic_vrt_options(data, kwargs))
 
         # Make the Request
-        port_request = self.webapp_comm_send({ 'action': 'request_port' })
+        port_request = webapp_comm_send({ 'action': 'request_port' })
         base_url = 'http://127.0.0.1:{}/ktile/{}/{}'.format(port_request['port'], kernel_id, name)
 
-        resp = self.webapp_comm_send({
+        resp = webapp_comm_send({
             'action': 'add_layer',
             'kernel_id': kernel_id,
             'layer_name': name,
