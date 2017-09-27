@@ -126,6 +126,7 @@ class Ktile(object):
         port = nbapp.port
 
         base_url = webapp.settings['base_url']
+        log.info("Initializing web app with base url '{}'".format(base_url))
 
         webapp.ktile_config_manager = KtileConfigManager(
             self.default_cache,
@@ -135,7 +136,7 @@ class Ktile(object):
         io_loop = IOLoop.current()
         ctx = zmq.Context()
         socket = ctx.socket(zmq.REP)
-        selected_port = socket.bind_to_random_port("tcp://*", min_port=49152, max_port=65535, max_tries=100)
+        selected_port = socket.bind_to_random_port("tcp://127.0.0.1", min_port=49152, max_port=65535, max_tries=100)
 
         user = os.environ['USER']
         log.info("Webapp communication channel opened on port {} for user {}".format(selected_port, user))
@@ -243,8 +244,11 @@ class Ktile(object):
             options.update(self._dynamic_vrt_options(data, kwargs))
 
         # Make the Request
-        port_request = webapp_comm_send({ 'action': 'request_port' })
-        base_url = 'http://127.0.0.1:{}/ktile/{}/{}'.format(port_request['port'], kernel_id, name)
+        # port_request = webapp_comm_send({ 'action': 'request_port' })
+        # base_url = 'http://127.0.0.1:{}/ktile/{}/{}'.format(port_request['port'], kernel_id, name)
+
+        base_url_query = webapp_comm_send({ 'action': 'request_base_url' })
+        base_url = '{}ktile/{}/{}'.format(base_url_query['base_url'], kernel_id, name)
 
         resp = webapp_comm_send({
             'action': 'add_layer',

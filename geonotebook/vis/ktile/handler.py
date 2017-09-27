@@ -99,6 +99,8 @@ class KtileLayerHandler(IPythonHandler):
             self.request.json = None
 
     def post(self, kernel_id, layer_name):
+        self.ktile_config_manager.log.info("Installing layer {}".format(layer_name))
+
         # Note: needs paramater validation
         try:
             self.ktile_config_manager.add_layer(
@@ -118,6 +120,8 @@ class KtileLayerHandler(IPythonHandler):
             self.finish({'error': traceback.format_exception(t, v, tb)})
 
     def get(self, kernel_id, layer_name, **kwargs):
+        self.ktile_config_manager.log.info("Requesting layer {}".format(layer_name))
+
         try:
             config = self.ktile_config_manager[kernel_id]
         except KeyError:
@@ -140,6 +144,8 @@ class KtileTileHandler(IPythonHandler):
     @gen.coroutine
     def get(self, kernel_id, layer_name, x, y, z, extension, **kwargs):
 
+        self.ktile_config_manager.log.info("Requesting {}/{}/{} from {}".format(z, x, y, layer_name))
+        
         config = self.ktile_config_manager[kernel_id]
 
         layer = config.layers[layer_name]

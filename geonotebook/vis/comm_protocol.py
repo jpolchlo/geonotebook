@@ -77,7 +77,9 @@ class WebAppProtocol(object):
 
     def request_port(self, **data):
         return { 'port': self.nbapp.port }
-            
+
+    def request_base_url(self, **data):
+        return { 'base_url': self.nbapp.web_app.settings['base_url'] }
             
     def err_missing_action(self, **data):
         return {
