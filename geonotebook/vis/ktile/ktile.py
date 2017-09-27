@@ -86,7 +86,7 @@ class KtileConfigManager(MutableMapping):
 # different contexts!
 
 class Ktile(object):
-    def __init__(self, config, default_cache=None):
+    def __init__(self, config, default_cache=None, **kwargs):
         self.config = config
         self.default_cache_section = default_cache
 
